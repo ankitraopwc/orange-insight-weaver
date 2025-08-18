@@ -155,8 +155,8 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
             </p>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto">
-            <div className="space-y-6 p-6">
+          <div className="flex-1 overflow-visible">
+            <div className="space-y-5 p-4">
               <div className="space-y-2">
                 <Label htmlFor="name" className="text-sm font-medium">
                   Name
@@ -179,7 +179,7 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
                     <SelectTrigger>
                       <SelectValue placeholder="Select domain" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[1000] bg-popover text-popover-foreground shadow-md">
                       {databaseData?.domains.map((d) => (
                         <SelectItem key={d.id} value={d.id}>
                           {d.name}
@@ -196,7 +196,7 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
                     <SelectTrigger>
                       <SelectValue placeholder="Select value stream" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[1000] bg-popover text-popover-foreground shadow-md">
                       {availableValueStreams.map((vs) => (
                         <SelectItem key={vs.id} value={vs.id}>
                           {vs.name}
@@ -216,7 +216,7 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
                     <SelectTrigger>
                       <SelectValue placeholder="Select LOB" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[1000] bg-popover text-popover-foreground shadow-md">
                       {availableLOBs.map((l) => (
                         <SelectItem key={l.id} value={l.id}>
                           {l.name}
@@ -233,7 +233,7 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
                     <SelectTrigger>
                       <SelectValue placeholder="Select state" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[1000] bg-popover text-popover-foreground shadow-md">
                       {databaseData?.projects.map((p) => (
                         <SelectItem key={p.id} value={p.id}>
                           {p.name}

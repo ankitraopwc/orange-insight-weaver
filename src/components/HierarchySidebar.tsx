@@ -16,10 +16,11 @@ interface DatabaseData {
 interface TreeItemProps {
   node: TreeNode;
   level: number;
+  defaultExpanded?: boolean;
 }
 
-const TreeItem = ({ node, level }: TreeItemProps) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+const TreeItem = ({ node, level, defaultExpanded = false }: TreeItemProps) => {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const hasChildren = node.children && node.children.length > 0;
 
   return (
@@ -46,7 +47,7 @@ const TreeItem = ({ node, level }: TreeItemProps) => {
       {hasChildren && isExpanded && (
         <div>
           {node.children!.map((child) => (
-            <TreeItem key={child.id} node={child} level={level + 1} />
+            <TreeItem key={child.id} node={child} level={level + 1} defaultExpanded={false} />
           ))}
         </div>
       )}
@@ -101,7 +102,7 @@ export const HierarchySidebar = ({ isOpen, onToggle }: HierarchySidebarProps) =>
           {/* Hierarchy content */}
           <div className="p-4 overflow-y-auto flex-1">
             {hierarchyData.map((node) => (
-              <TreeItem key={node.id} node={node} level={0} />
+              <TreeItem key={node.id} node={node} level={0} defaultExpanded />
             ))}
           </div>
         </div>
