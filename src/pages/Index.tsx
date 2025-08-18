@@ -1,12 +1,41 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from "react";
+import { Header } from "@/components/Header";
+import { ActionPanel } from "@/components/ActionPanel";
+import { OntologyModal } from "@/components/OntologyModal";
+import { HierarchySidebar } from "@/components/HierarchySidebar";
+import { RelationshipGraph } from "@/components/RelationshipGraph";
 
 const Index = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [ttlData, setTtlData] = useState(null);
+
+  const handleOntologyGenerated = (data: any) => {
+    setTtlData(data);
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+    <div className="min-h-screen bg-background">
+      <Header onSidebarToggle={() => setIsSidebarOpen(!isSidebarOpen)} />
+      
+      <ActionPanel onOntologyClick={() => setIsModalOpen(true)} />
+      
+      <div className="flex">
+        <HierarchySidebar 
+          isOpen={isSidebarOpen} 
+          onToggle={() => setIsSidebarOpen(!isSidebarOpen)} 
+        />
+        
+        <main className="flex-1 min-h-[calc(100vh-8rem)]">
+          <RelationshipGraph ttlData={ttlData} />
+        </main>
       </div>
+
+      <OntologyModal
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onOntologyGenerated={handleOntologyGenerated}
+      />
     </div>
   );
 };
