@@ -7,7 +7,7 @@ interface ActionPanelProps {
 
 export const ActionPanel = ({ onOntologyClick }: ActionPanelProps) => {
   return (
-    <div className="bg-orange-50 border-b border-border p-6">
+    <div className="bg-orange-50 border-b border-border p-6 flex justify-center">
       <div className="flex items-center space-x-4">
         <Button
           onClick={onOntologyClick}

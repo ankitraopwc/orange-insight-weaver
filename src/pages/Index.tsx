@@ -18,15 +18,15 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Header onSidebarToggle={() => setIsSidebarOpen(!isSidebarOpen)} />
       
-      <ActionPanel onOntologyClick={() => setIsModalOpen(true)} />
+      <HierarchySidebar 
+        isOpen={isSidebarOpen} 
+        onToggle={() => setIsSidebarOpen(!isSidebarOpen)} 
+      />
       
-      <div className="flex">
-        <HierarchySidebar 
-          isOpen={isSidebarOpen} 
-          onToggle={() => setIsSidebarOpen(!isSidebarOpen)} 
-        />
+      <div className={`transition-all duration-300 ${isSidebarOpen ? 'ml-80' : 'ml-0'}`}>
+        <ActionPanel onOntologyClick={() => setIsModalOpen(true)} />
         
-        <main className="flex-1 min-h-[calc(100vh-8rem)]">
+        <main className="min-h-[calc(100vh-8rem)]">
           <RelationshipGraph ttlData={ttlData} />
         </main>
       </div>
