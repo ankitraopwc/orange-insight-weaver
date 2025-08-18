@@ -1,4 +1,4 @@
-import { Building, User } from "lucide-react";
+import { User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface HeaderProps {
@@ -16,9 +16,14 @@ export const Header = ({ onSidebarToggle }: HeaderProps) => {
           onClick={onSidebarToggle}
           className="p-1 hover:bg-orange-100"
         >
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <Building className="w-5 h-5 text-primary-foreground" />
-          </div>
+          <img 
+            src="/lovable-uploads/org-logo-placeholder.png" 
+            alt="Company Logo" 
+            className="w-8 h-8 rounded-lg object-cover"
+            onError={(e) => {
+              e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNCIgZmlsbD0iI0Y5NzMxNiIvPgo8dGV4dCB4PSIxNiIgeT0iMjAiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMTQiIGZvbnQtd2VpZ2h0PSI2MDAiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5MT0dPPC90ZXh0Pgo8L3N2Zz4K';
+            }}
+          />
         </Button>
         <h1 className="text-2xl font-bold text-primary">iKnow</h1>
       </div>

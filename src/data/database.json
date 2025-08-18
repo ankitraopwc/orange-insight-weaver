@@ -1,0 +1,124 @@
+{
+  "hierarchy": [
+    {
+      "id": "insurance",
+      "name": "Insurance",
+      "children": [
+        {
+          "id": "auto",
+          "name": "Auto",
+          "children": [
+            {
+              "id": "new-business",
+              "name": "New Business",
+              "children": [
+                {
+                  "id": "ny",
+                  "name": "NY",
+                  "children": [
+                    {
+                      "id": "ontology",
+                      "name": "Ontology",
+                      "children": [
+                        { "id": "onto1", "name": "Onto1" },
+                        { "id": "onto2", "name": "Onto2" }
+                      ]
+                    },
+                    { "id": "knowledge-graph", "name": "Knowledge Graph" }
+                  ]
+                },
+                { "id": "tx", "name": "TX" }
+              ]
+            },
+            { "id": "claim", "name": "Claim" },
+            { "id": "billing", "name": "Billing" }
+          ]
+        },
+        { "id": "property", "name": "Property" },
+        { "id": "life", "name": "Life" }
+      ]
+    },
+    { "id": "manufacturing", "name": "Manufacturing" },
+    { "id": "healthcare", "name": "Healthcare" }
+  ],
+  "domains": [
+    { "id": "healthcare", "name": "Healthcare" },
+    { "id": "insurance", "name": "Insurance" },
+    { "id": "manufacturing", "name": "Manufacturing" }
+  ],
+  "valueStreams": {
+    "healthcare": [
+      { "id": "patient-care", "name": "Patient Care" },
+      { "id": "medical-records", "name": "Medical Records" },
+      { "id": "billing-healthcare", "name": "Billing" }
+    ],
+    "insurance": [
+      { "id": "underwriting", "name": "Underwriting" },
+      { "id": "claims-processing", "name": "Claims Processing" },
+      { "id": "policy-management", "name": "Policy Management" }
+    ],
+    "manufacturing": [
+      { "id": "supply-chain", "name": "Supply Chain" },
+      { "id": "production", "name": "Production" },
+      { "id": "quality-control", "name": "Quality Control" }
+    ]
+  },
+  "linesOfBusiness": {
+    "patient-care": [
+      { "id": "emergency", "name": "Emergency" },
+      { "id": "outpatient", "name": "Outpatient" }
+    ],
+    "medical-records": [
+      { "id": "electronic-health-records", "name": "Electronic Health Records" }
+    ],
+    "billing-healthcare": [
+      { "id": "patient-billing", "name": "Patient Billing" }
+    ],
+    "underwriting": [
+      { "id": "auto-underwriting", "name": "Auto Underwriting" },
+      { "id": "property-underwriting", "name": "Property Underwriting" }
+    ],
+    "claims-processing": [
+      { "id": "auto-claims", "name": "Auto Claims" },
+      { "id": "property-claims", "name": "Property Claims" }
+    ],
+    "policy-management": [
+      { "id": "new-business", "name": "New Business" },
+      { "id": "renewals", "name": "Renewals" }
+    ],
+    "supply-chain": [
+      { "id": "procurement", "name": "Procurement" },
+      { "id": "logistics", "name": "Logistics" }
+    ],
+    "production": [
+      { "id": "assembly", "name": "Assembly" },
+      { "id": "testing", "name": "Testing" }
+    ],
+    "quality-control": [
+      { "id": "inspection", "name": "Inspection" },
+      { "id": "certification", "name": "Certification" }
+    ]
+  },
+  "projects": [
+    { "id": "california", "name": "California" },
+    { "id": "texas", "name": "Texas" },
+    { "id": "florida", "name": "Florida" },
+    { "id": "new-york", "name": "New York" },
+    { "id": "pennsylvania", "name": "Pennsylvania" },
+    { "id": "illinois", "name": "Illinois" },
+    { "id": "ohio", "name": "Ohio" },
+    { "id": "georgia", "name": "Georgia" },
+    { "id": "north-carolina", "name": "North Carolina" },
+    { "id": "michigan", "name": "Michigan" },
+    { "id": "new-jersey", "name": "New Jersey" },
+    { "id": "virginia", "name": "Virginia" },
+    { "id": "washington", "name": "Washington" },
+    { "id": "arizona", "name": "Arizona" },
+    { "id": "massachusetts", "name": "Massachusetts" },
+    { "id": "tennessee", "name": "Tennessee" },
+    { "id": "indiana", "name": "Indiana" },
+    { "id": "missouri", "name": "Missouri" },
+    { "id": "maryland", "name": "Maryland" },
+    { "id": "wisconsin", "name": "Wisconsin" }
+  ]
+}

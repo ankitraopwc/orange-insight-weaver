@@ -1,10 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+interface DatabaseData {
+  domains: { id: string; name: string }[];
+  valueStreams: { [key: string]: { id: string; name: string }[] };
+  linesOfBusiness: { [key: string]: { id: string; name: string }[] };
+  projects: { id: string; name: string }[];
+}
 
 interface OntologyModalProps {
   open: boolean;
@@ -20,7 +28,35 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
   const [project, setProject] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [databaseData, setDatabaseData] = useState<DatabaseData | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const loadDatabaseData = async () => {
+      try {
+        const response = await fetch('/src/data/database.json');
+        const data = await response.json();
+        setDatabaseData(data);
+      } catch (error) {
+        console.error('Failed to load database data:', error);
+      }
+    };
+
+    loadDatabaseData();
+  }, []);
+
+  const availableValueStreams = domain && databaseData ? databaseData.valueStreams[domain] || [] : [];
+  const availableLOBs = valueStream && databaseData ? databaseData.linesOfBusiness[valueStream] || [] : [];
+
+  // Reset dependent fields when parent changes
+  useEffect(() => {
+    setValueStream("");
+    setLob("");
+  }, [domain]);
+
+  useEffect(() => {
+    setLob("");
+  }, [valueStream]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -101,7 +137,7 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl w-[80vw] max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl w-[90vw] h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-primary">
             Generate Ontology
@@ -119,95 +155,121 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
             </p>
           </div>
         ) : (
-          <div className="space-y-6 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="name" className="text-sm font-medium">
-                Name
-              </Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter ontology name"
-                className="w-full"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+          <div className="flex-1 overflow-y-auto">
+            <div className="space-y-6 p-6">
               <div className="space-y-2">
-                <Label htmlFor="domain" className="text-sm font-medium">
-                  Domain
+                <Label htmlFor="name" className="text-sm font-medium">
+                  Name
                 </Label>
                 <Input
-                  id="domain"
-                  value={domain}
-                  onChange={(e) => setDomain(e.target.value)}
-                  placeholder="Enter domain"
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Enter ontology name"
+                  className="w-full"
                 />
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="domain" className="text-sm font-medium">
+                    Domain
+                  </Label>
+                  <Select value={domain} onValueChange={setDomain}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select domain" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {databaseData?.domains.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>
+                          {d.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="valueStream" className="text-sm font-medium">
+                    Value Stream
+                  </Label>
+                  <Select value={valueStream} onValueChange={setValueStream} disabled={!domain}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select value stream" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableValueStreams.map((vs) => (
+                        <SelectItem key={vs.id} value={vs.id}>
+                          {vs.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="lob" className="text-sm font-medium">
+                    Line of Business
+                  </Label>
+                  <Select value={lob} onValueChange={setLob} disabled={!valueStream}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select LOB" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableLOBs.map((l) => (
+                        <SelectItem key={l.id} value={l.id}>
+                          {l.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="project" className="text-sm font-medium">
+                    Project (State)
+                  </Label>
+                  <Select value={project} onValueChange={setProject}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select state" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {databaseData?.projects.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               <div className="space-y-2">
-                <Label htmlFor="valueStream" className="text-sm font-medium">
-                  Value Stream
+                <Label htmlFor="file" className="text-sm font-medium">
+                  Upload ZIP File
                 </Label>
-                <Input
-                  id="valueStream"
-                  value={valueStream}
-                  onChange={(e) => setValueStream(e.target.value)}
-                  placeholder="Enter value stream"
-                />
+                <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                  <input
+                    id="file"
+                    type="file"
+                    accept=".zip"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <label
+                    htmlFor="file"
+                    className="cursor-pointer flex flex-col items-center space-y-2"
+                  >
+                    <Upload className="w-8 h-8 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">
+                      {file ? file.name : "Click to upload ZIP file"}
+                    </span>
+                  </label>
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="lob" className="text-sm font-medium">
-                  LOB
-                </Label>
-                <Input
-                  id="lob"
-                  value={lob}
-                  onChange={(e) => setLob(e.target.value)}
-                  placeholder="Enter LOB"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="project" className="text-sm font-medium">
-                  Project
-                </Label>
-                <Input
-                  id="project"
-                  value={project}
-                  onChange={(e) => setProject(e.target.value)}
-                  placeholder="Enter project"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="file" className="text-sm font-medium">
-                Upload ZIP File
-              </Label>
-              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
-                <input
-                  id="file"
-                  type="file"
-                  accept=".zip"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-                <label
-                  htmlFor="file"
-                  className="cursor-pointer flex flex-col items-center space-y-2"
-                >
-                  <Upload className="w-8 h-8 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
-                    {file ? file.name : "Click to upload ZIP file"}
-                  </span>
-                </label>
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-3 pt-4">
+            <div className="flex justify-end space-x-3 p-6 border-t border-border">
               <Button variant="outline" onClick={handleClose}>
                 Cancel
               </Button>

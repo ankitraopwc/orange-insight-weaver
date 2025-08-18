@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ChevronDown, ChevronRight, PanelLeft } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ChevronDown, ChevronRight, PanelLeft, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -9,48 +9,9 @@ interface TreeNode {
   children?: TreeNode[];
 }
 
-const hierarchyData: TreeNode[] = [
-  {
-    id: "insurance",
-    name: "Insurance",
-    children: [
-      {
-        id: "auto",
-        name: "Auto",
-        children: [
-          {
-            id: "new-business",
-            name: "New Business",
-            children: [
-              {
-                id: "ny",
-                name: "NY",
-                children: [
-                  {
-                    id: "ontology",
-                    name: "Ontology",
-                    children: [
-                      { id: "onto1", name: "Onto1" },
-                      { id: "onto2", name: "Onto2" }
-                    ]
-                  },
-                  { id: "knowledge-graph", name: "Knowledge Graph" }
-                ]
-              },
-              { id: "tx", name: "TX" }
-            ]
-          },
-          { id: "claim", name: "Claim" },
-          { id: "billing", name: "Billing" }
-        ]
-      },
-      { id: "property", name: "Property" },
-      { id: "life", name: "Life" }
-    ]
-  },
-  { id: "manufacturing", name: "Manufacturing" },
-  { id: "health", name: "Health" }
-];
+interface DatabaseData {
+  hierarchy: TreeNode[];
+}
 
 interface TreeItemProps {
   node: TreeNode;
@@ -99,6 +60,22 @@ interface HierarchySidebarProps {
 }
 
 export const HierarchySidebar = ({ isOpen, onToggle }: HierarchySidebarProps) => {
+  const [hierarchyData, setHierarchyData] = useState<TreeNode[]>([]);
+
+  useEffect(() => {
+    const loadHierarchyData = async () => {
+      try {
+        const response = await fetch('/src/data/database.json');
+        const data: DatabaseData = await response.json();
+        setHierarchyData(data.hierarchy);
+      } catch (error) {
+        console.error('Failed to load hierarchy data:', error);
+      }
+    };
+
+    loadHierarchyData();
+  }, []);
+
   return (
     <>
       {/* Sidebar */}
@@ -108,10 +85,25 @@ export const HierarchySidebar = ({ isOpen, onToggle }: HierarchySidebarProps) =>
           isOpen ? "translate-x-0 w-80" : "-translate-x-full w-0"
         )}
       >
-        <div className="p-4 overflow-y-auto h-full">
-          {hierarchyData.map((node) => (
-            <TreeItem key={node.id} node={node} level={0} />
-          ))}
+        <div className="flex flex-col h-full">
+          {/* Close button */}
+          <div className="flex justify-end p-2 border-b border-sidebar-border">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onToggle}
+              className="p-1 hover:bg-orange-100"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+          
+          {/* Hierarchy content */}
+          <div className="p-4 overflow-y-auto flex-1">
+            {hierarchyData.map((node) => (
+              <TreeItem key={node.id} node={node} level={0} />
+            ))}
+          </div>
         </div>
       </div>
 
