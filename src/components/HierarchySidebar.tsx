@@ -108,10 +108,7 @@ export const HierarchySidebar = ({ isOpen, onToggle }: HierarchySidebarProps) =>
           isOpen ? "translate-x-0 w-80" : "-translate-x-full w-0"
         )}
       >
-        <div className="p-4 border-b border-sidebar-border">
-          <h3 className="font-semibold text-sidebar-foreground">Hierarchy</h3>
-        </div>
-        <div className="p-2 overflow-y-auto h-full">
+        <div className="p-4 overflow-y-auto h-full">
           {hierarchyData.map((node) => (
             <TreeItem key={node.id} node={node} level={0} />
           ))}

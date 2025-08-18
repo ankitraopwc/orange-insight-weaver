@@ -24,14 +24,18 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
-    if (selectedFile && selectedFile.type === "application/zip") {
-      setFile(selectedFile);
-    } else {
-      toast({
-        title: "Invalid file type",
-        description: "Please select a ZIP file.",
-        variant: "destructive",
-      });
+    if (selectedFile) {
+      // Check file extension instead of MIME type since ZIP MIME type can vary
+      const fileName = selectedFile.name.toLowerCase();
+      if (fileName.endsWith('.zip')) {
+        setFile(selectedFile);
+      } else {
+        toast({
+          title: "Invalid file type",
+          description: "Please select a ZIP file.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
