@@ -34,7 +34,7 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
   useEffect(() => {
     const loadDatabaseData = async () => {
       try {
-        const response = await fetch('/src/data/database.json');
+        const response = await fetch('/data/database.json');
         const data = await response.json();
         setDatabaseData(data);
       } catch (error) {
@@ -137,9 +137,9 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl w-[90vw] h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-primary">
+      <DialogContent className="max-w-4xl w-[90vw] max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader className="px-4 pt-4 pb-2">
+          <DialogTitle className="text-xl font-bold text-primary">
             Generate Ontology
           </DialogTitle>
         </DialogHeader>
@@ -155,8 +155,8 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
             </p>
           </div>
         ) : (
-          <div className="flex-1 overflow-visible">
-            <div className="space-y-5 p-4">
+          <div className="flex-1 overflow-y-auto">
+            <div className="space-y-4 px-4 pb-2">
               <div className="space-y-2">
                 <Label htmlFor="name" className="text-sm font-medium">
                   Name
@@ -248,7 +248,7 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
                 <Label htmlFor="file" className="text-sm font-medium">
                   Upload ZIP File
                 </Label>
-                <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                <div className="border-2 border-dashed border-border rounded-lg p-4 text-center">
                   <input
                     id="file"
                     type="file"
@@ -260,8 +260,8 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
                     htmlFor="file"
                     className="cursor-pointer flex flex-col items-center space-y-2"
                   >
-                    <Upload className="w-8 h-8 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">
+                    <Upload className="w-6 h-6 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">
                       {file ? file.name : "Click to upload ZIP file"}
                     </span>
                   </label>
@@ -269,7 +269,7 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
               </div>
             </div>
 
-            <div className="flex justify-end space-x-3 p-6 border-t border-border">
+            <div className="flex justify-end space-x-3 px-4 py-3 border-t border-border bg-background">
               <Button variant="outline" onClick={handleClose}>
                 Cancel
               </Button>

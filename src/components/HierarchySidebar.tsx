@@ -66,7 +66,7 @@ export const HierarchySidebar = ({ isOpen, onToggle }: HierarchySidebarProps) =>
   useEffect(() => {
     const loadHierarchyData = async () => {
       try {
-        const response = await fetch('/src/data/database.json');
+        const response = await fetch('/data/database.json');
         const data: DatabaseData = await response.json();
         setHierarchyData(data.hierarchy);
       } catch (error) {
