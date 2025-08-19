@@ -29,13 +29,18 @@ export const RelationshipGraph = ({ ttlData }: RelationshipGraphProps) => {
 
   useEffect(() => {
     if (ttlData) {
-      console.log("Parsing TTL Data:", ttlData.substring(0, 200) + "...");
+      console.log("Parsing TTL Data:", ttlData.substring ? ttlData.substring(0, 200) + "..." : ttlData);
       try {
-        const parsedGraph = parseTTLToGraph(ttlData);
+        // Handle case where ttlData might be a JSON object with ttl property
+        const actualTtlData = typeof ttlData === 'string' ? ttlData : (ttlData as any)?.ttl || ttlData;
+        const parsedGraph = parseTTLToGraph(actualTtlData);
+        console.log("Successfully parsed graph with", parsedGraph.nodes.length, "nodes and", parsedGraph.edges.length, "edges");
         setNodes(parsedGraph.nodes);
         setEdges(parsedGraph.edges);
       } catch (error) {
         console.error("Error parsing TTL data:", error);
+        console.error("TTL Data type:", typeof ttlData);
+        console.error("TTL Data:", ttlData);
         // Fallback to placeholder if parsing fails
         const placeholderGraph = createMedicalPlaceholderGraph();
         setNodes(placeholderGraph.nodes);
