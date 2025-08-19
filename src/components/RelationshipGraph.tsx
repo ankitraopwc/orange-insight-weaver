@@ -29,10 +29,10 @@ export const RelationshipGraph = ({ ttlData }: RelationshipGraphProps) => {
 
   useEffect(() => {
     if (ttlData) {
-      console.log("Parsing TTL Data:", ttlData.substring ? ttlData.substring(0, 200) + "..." : ttlData);
+      // Handle case where ttlData might be a JSON object with ttl property
+      const actualTtlData = typeof ttlData === 'string' ? ttlData : (ttlData as any)?.ttl || ttlData;
+      console.log("Parsing TTL Data:", typeof actualTtlData === 'string' ? actualTtlData.substring(0, 200) + "..." : actualTtlData);
       try {
-        // Handle case where ttlData might be a JSON object with ttl property
-        const actualTtlData = typeof ttlData === 'string' ? ttlData : (ttlData as any)?.ttl || ttlData;
         const parsedGraph = parseTTLToGraph(actualTtlData);
         console.log("Successfully parsed graph with", parsedGraph.nodes.length, "nodes and", parsedGraph.edges.length, "edges");
         setNodes(parsedGraph.nodes);
