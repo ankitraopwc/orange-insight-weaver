@@ -96,10 +96,19 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
       formData.append("project", project);
       formData.append("file", file);
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 540000); // 540 seconds timeout
+
       const response = await fetch("http://localhost:8000/generate-ontology", {
         method: "POST",
         body: formData,
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+        },
       });
+
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const data = await response.json();
