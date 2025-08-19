@@ -7,6 +7,25 @@ export interface ParsedTTLData {
   edges: Edge[];
 }
 
+export interface EntityProperty {
+  name: string;
+  type: 'datatype' | 'object';
+  range?: string;
+  domain?: string;
+}
+
+export interface EntityClass {
+  name: string;
+  uri: string;
+  comment?: string;
+  properties: EntityProperty[];
+  relationships: EntityProperty[];
+}
+
+export interface ParsedEntities {
+  entities: EntityClass[];
+}
+
 export function parseTTLToGraph(ttlData: string): ParsedTTLData {
   console.log("Starting TTL parsing...");
   const parser = new Parser();
@@ -287,4 +306,130 @@ export function createMedicalPlaceholderGraph(): ParsedTTLData {
   ];
 
   return { nodes, edges };
+}
+
+export function parseTTLToEntities(ttlData: string): ParsedEntities {
+  console.log("Starting TTL entity parsing...");
+  const parser = new Parser();
+  const quads = parser.parse(ttlData);
+  
+  console.log("Parsed quads:", quads.length);
+  
+  const classes = new Map<string, EntityClass>();
+  const properties = new Map<string, EntityProperty>();
+  
+  // Extract prefixes from TTL data
+  const prefixMap = new Map<string, string>();
+  const prefixRegex = /@prefix\s+(\w+):\s+<([^>]+)>\s*\./g;
+  let match;
+  while ((match = prefixRegex.exec(ttlData)) !== null) {
+    prefixMap.set(match[2], match[1]);
+  }
+  
+  // Helper function to get short name
+  const getEntityName = (uri: string): string => {
+    for (const [fullPrefix, shortPrefix] of prefixMap.entries()) {
+      if (uri.startsWith(fullPrefix)) {
+        return uri.replace(fullPrefix, '');
+      }
+    }
+    const parts = uri.split(/[#/]/);
+    return parts[parts.length - 1] || uri;
+  };
+  
+  // First pass: identify classes
+  quads.forEach((quad) => {
+    if (quad.predicate.value === 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' &&
+        quad.object.value === 'http://www.w3.org/2002/07/owl#Class') {
+      const classUri = quad.subject.value;
+      const className = getEntityName(classUri);
+      
+      if (!classes.has(classUri)) {
+        classes.set(classUri, {
+          name: className,
+          uri: classUri,
+          properties: [],
+          relationships: []
+        });
+      }
+    }
+  });
+  
+  // Second pass: get comments for classes
+  quads.forEach((quad) => {
+    if (quad.predicate.value === 'http://www.w3.org/2000/01/rdf-schema#comment' &&
+        classes.has(quad.subject.value)) {
+      const classEntity = classes.get(quad.subject.value);
+      if (classEntity) {
+        classEntity.comment = quad.object.value;
+      }
+    }
+  });
+  
+  // Third pass: identify properties
+  quads.forEach((quad) => {
+    const predicate = quad.predicate.value;
+    const subject = quad.subject.value;
+    
+    if (predicate === 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type') {
+      const objectValue = quad.object.value;
+      if (objectValue === 'http://www.w3.org/2002/07/owl#DatatypeProperty') {
+        const propName = getEntityName(subject);
+        properties.set(subject, {
+          name: propName,
+          type: 'datatype'
+        });
+      } else if (objectValue === 'http://www.w3.org/2002/07/owl#ObjectProperty') {
+        const propName = getEntityName(subject);
+        properties.set(subject, {
+          name: propName,
+          type: 'object'
+        });
+      }
+    }
+  });
+  
+  // Fourth pass: get property domains and ranges
+  quads.forEach((quad) => {
+    const predicate = quad.predicate.value;
+    const subject = quad.subject.value;
+    
+    if (properties.has(subject)) {
+      const property = properties.get(subject)!;
+      
+      if (predicate === 'http://www.w3.org/2000/01/rdf-schema#domain') {
+        property.domain = getEntityName(quad.object.value);
+      } else if (predicate === 'http://www.w3.org/2000/01/rdf-schema#range') {
+        // Handle unionOf ranges
+        if (quad.object.termType === 'BlankNode') {
+          // This might be a unionOf - we'll simplify and just show as generic range
+          property.range = 'Multiple Types';
+        } else {
+          property.range = getEntityName(quad.object.value);
+        }
+      }
+    }
+  });
+  
+  // Fifth pass: assign properties to classes
+  properties.forEach((property) => {
+    if (property.domain) {
+      // Find the class by name (since we converted URIs to names)
+      const classEntity = Array.from(classes.values()).find(c => c.name === property.domain);
+      if (classEntity) {
+        if (property.type === 'datatype') {
+          classEntity.properties.push(property);
+        } else {
+          classEntity.relationships.push(property);
+        }
+      }
+    }
+  });
+  
+  console.log("Parsed entities:", classes.size);
+  console.log("Parsed properties:", properties.size);
+  
+  return {
+    entities: Array.from(classes.values())
+  };
 }

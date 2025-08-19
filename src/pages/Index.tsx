@@ -11,7 +11,7 @@ const Index = () => {
   const [ttlData, setTtlData] = useState(null);
 
   const handleOntologyGenerated = (data: any) => {
-    setTtlData(data);
+    setTtlData(data?.ttl || null);
   };
 
   return (
