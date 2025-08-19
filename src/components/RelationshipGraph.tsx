@@ -107,27 +107,7 @@ export const RelationshipGraph = ({ ttlData }: RelationshipGraphProps) => {
 
   const renderHumanReadableFormat = () => {
     if (!ttlData) {
-      return (
-        <div className="space-y-4">
-          <div className="bg-muted/50 p-4 rounded-lg">
-            <h4 className="font-semibold text-lg mb-3 text-foreground">Policy</h4>
-            <ul className="space-y-2 ml-4">
-              <li className="text-muted-foreground">• PolicyNumber</li>
-              <li className="text-muted-foreground">• StartDate</li>
-              <li className="text-muted-foreground">• EndDate</li>
-              <li className="text-muted-foreground">• Covers a (Vehicle)</li>
-            </ul>
-          </div>
-          <div className="bg-muted/50 p-4 rounded-lg">
-            <h4 className="font-semibold text-lg mb-3 text-foreground">Vehicle</h4>
-            <ul className="space-y-2 ml-4">
-              <li className="text-muted-foreground">• VIN</li>
-              <li className="text-muted-foreground">• Manufacturing Date</li>
-              <li className="text-muted-foreground">• Is CoveredBy (Policy)</li>
-            </ul>
-          </div>
-        </div>
-      );
+      return null;
     }
 
     // Parse actual TTL data to show human readable format
@@ -202,23 +182,20 @@ export const RelationshipGraph = ({ ttlData }: RelationshipGraphProps) => {
 
   return (
     <div className="flex-1">
-      <div className="bg-card border border-border rounded-lg h-[calc(100vh-12rem)]">
-        <div className="p-4 border-b border-border">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-card-foreground">
-              {ttlData ? "Ontology Entity Structure" : "Sample Entity Structure"}
-            </h3>
-            {!ttlData && (
-              <span className="text-sm text-muted-foreground">
-                Click Ontology to generate actual structure
-              </span>
-            )}
+      {ttlData && (
+        <div className="bg-card border border-border rounded-lg h-[calc(100vh-12rem)]">
+          <div className="p-4 border-b border-border">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-card-foreground">
+                Ontology Entity Structure
+              </h3>
+            </div>
+          </div>
+          <div className="p-6 h-[calc(100%-60px)] overflow-y-auto">
+            {renderHumanReadableFormat()}
           </div>
         </div>
-        <div className="p-6 h-[calc(100%-60px)] overflow-y-auto">
-          {renderHumanReadableFormat()}
-        </div>
-      </div>
+      )}
     </div>
   );
 };
