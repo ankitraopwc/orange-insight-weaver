@@ -1,18 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-interface DatabaseData {
-  domains: { id: string; name: string }[];
-  valueStreams: { [key: string]: { id: string; name: string }[] };
-  linesOfBusiness: { [key: string]: { id: string; name: string }[] };
-  projects: { id: string; name: string }[];
-}
 
 interface OntologyModalProps {
   open: boolean;
@@ -21,42 +13,10 @@ interface OntologyModalProps {
 }
 
 export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyModalProps) => {
-  const [name, setName] = useState("");
-  const [domain, setDomain] = useState("");
-  const [valueStream, setValueStream] = useState("");
-  const [lob, setLob] = useState("");
-  const [project, setProject] = useState("");
+  const [name, setName] = useState("default");
   const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [databaseData, setDatabaseData] = useState<DatabaseData | null>(null);
   const { toast } = useToast();
-
-  useEffect(() => {
-    const loadDatabaseData = async () => {
-      try {
-        const response = await fetch('/data/database.json');
-        const data = await response.json();
-        setDatabaseData(data);
-      } catch (error) {
-        console.error('Failed to load database data:', error);
-      }
-    };
-
-    loadDatabaseData();
-  }, []);
-
-  const availableValueStreams = domain && databaseData ? databaseData.valueStreams[domain] || [] : [];
-  const availableLOBs = valueStream && databaseData ? databaseData.linesOfBusiness[valueStream] || [] : [];
-
-  // Reset dependent fields when parent changes
-  useEffect(() => {
-    setValueStream("");
-    setLob("");
-  }, [domain]);
-
-  useEffect(() => {
-    setLob("");
-  }, [valueStream]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -76,10 +36,10 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
   };
 
   const handleSubmit = async () => {
-    if (!name || !domain || !valueStream || !lob || !project || !file) {
+    if (!file) {
       toast({
-        title: "Missing fields",
-        description: "Please fill in all fields and upload a ZIP file.",
+        title: "Missing file",
+        description: "Please upload a ZIP file.",
         variant: "destructive",
       });
       return;
@@ -89,12 +49,8 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
 
     try {
       const formData = new FormData();
+      formData.append("zip_file", file);
       formData.append("name", name);
-      formData.append("domain", domain);
-      formData.append("valueStream", valueStream);
-      formData.append("lob", lob);
-      formData.append("project", project);
-      formData.append("file", file);
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 540000); // 540 seconds timeout
@@ -112,7 +68,7 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
 
       if (response.ok) {
         const data = await response.json();
-        onOntologyGenerated(data);
+        onOntologyGenerated(data.ttl);
         onClose();
         toast({
           title: "Success",
@@ -134,11 +90,7 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
 
   const handleClose = () => {
     if (!isLoading) {
-      setName("");
-      setDomain("");
-      setValueStream("");
-      setLob("");
-      setProject("");
+      setName("default");
       setFile(null);
       onClose();
     }
@@ -168,7 +120,7 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
             <div className="space-y-4 px-4 pb-2">
               <div className="space-y-2">
                 <Label htmlFor="name" className="text-sm font-medium">
-                  Name
+                  Name (Optional)
                 </Label>
                 <Input
                   id="name"
@@ -177,80 +129,6 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
                   placeholder="Enter ontology name"
                   className="w-full"
                 />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="domain" className="text-sm font-medium">
-                    Domain
-                  </Label>
-                  <Select value={domain} onValueChange={setDomain}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select domain" />
-                    </SelectTrigger>
-                    <SelectContent className="z-[1000] bg-popover text-popover-foreground shadow-md">
-                      {databaseData?.domains.map((d) => (
-                        <SelectItem key={d.id} value={d.id}>
-                          {d.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="valueStream" className="text-sm font-medium">
-                    Value Stream
-                  </Label>
-                  <Select value={valueStream} onValueChange={setValueStream} disabled={!domain}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select value stream" />
-                    </SelectTrigger>
-                    <SelectContent className="z-[1000] bg-popover text-popover-foreground shadow-md">
-                      {availableValueStreams.map((vs) => (
-                        <SelectItem key={vs.id} value={vs.id}>
-                          {vs.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="lob" className="text-sm font-medium">
-                    Line of Business
-                  </Label>
-                  <Select value={lob} onValueChange={setLob} disabled={!valueStream}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select LOB" />
-                    </SelectTrigger>
-                    <SelectContent className="z-[1000] bg-popover text-popover-foreground shadow-md">
-                      {availableLOBs.map((l) => (
-                        <SelectItem key={l.id} value={l.id}>
-                          {l.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="project" className="text-sm font-medium">
-                    Project (State)
-                  </Label>
-                  <Select value={project} onValueChange={setProject}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select state" />
-                    </SelectTrigger>
-                    <SelectContent className="z-[1000] bg-popover text-popover-foreground shadow-md">
-                      {databaseData?.projects.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
 
               <div className="space-y-2">
