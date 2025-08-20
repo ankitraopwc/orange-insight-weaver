@@ -308,6 +308,132 @@ export function createMedicalPlaceholderGraph(): ParsedTTLData {
   return { nodes, edges };
 }
 
+// Build ER graph with only classes and their object properties (relationships)
+export function buildClassERGraph(ttlData: string): ParsedTTLData {
+  console.log("Building class ER graph...");
+  const parser = new Parser();
+  const quads = parser.parse(ttlData);
+  
+  console.log("Parsed quads:", quads.length);
+  
+  const classes = new Map<string, Node>();
+  const objectProperties = new Map<string, { name: string; domain?: string; range?: string }>();
+  const edges: Edge[] = [];
+  let nodeCount = 0;
+  let edgeCount = 0;
+  
+  // Extract prefixes from TTL data
+  const prefixMap = new Map<string, string>();
+  const prefixRegex = /@prefix\s+(\w+):\s+<([^>]+)>\s*\./g;
+  let match;
+  while ((match = prefixRegex.exec(ttlData)) !== null) {
+    prefixMap.set(match[2], match[1]);
+  }
+  
+  // Helper function to get short name
+  const getEntityName = (uri: string): string => {
+    for (const [fullPrefix, shortPrefix] of prefixMap.entries()) {
+      if (uri.startsWith(fullPrefix)) {
+        return uri.replace(fullPrefix, '');
+      }
+    }
+    const parts = uri.split(/[#/]/);
+    return parts[parts.length - 1] || uri;
+  };
+  
+  // First pass: identify classes
+  quads.forEach((quad) => {
+    if (quad.predicate.value === 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' &&
+        quad.object.value === 'http://www.w3.org/2002/07/owl#Class') {
+      const classUri = quad.subject.value;
+      const className = getEntityName(classUri);
+      
+      if (!classes.has(classUri)) {
+        const nodeId = `class-${nodeCount++}`;
+        classes.set(classUri, {
+          id: nodeId,
+          data: { label: className, uri: classUri, type: 'class' },
+          position: { x: Math.random() * 800, y: Math.random() * 600 },
+          type: 'default',
+          style: {
+            background: 'hsl(var(--primary))',
+            color: 'hsl(var(--primary-foreground))',
+            border: '2px solid hsl(var(--border))',
+            borderRadius: '8px',
+            padding: '12px',
+            minWidth: '120px',
+            textAlign: 'center' as const,
+            fontWeight: '500'
+          }
+        });
+      }
+    }
+  });
+  
+  // Second pass: identify object properties only (not datatype properties)
+  quads.forEach((quad) => {
+    if (quad.predicate.value === 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' &&
+        quad.object.value === 'http://www.w3.org/2002/07/owl#ObjectProperty') {
+      const propUri = quad.subject.value;
+      const propName = getEntityName(propUri);
+      
+      objectProperties.set(propUri, {
+        name: propName
+      });
+    }
+  });
+  
+  // Third pass: get domains and ranges for object properties
+  quads.forEach((quad) => {
+    const predicate = quad.predicate.value;
+    const subject = quad.subject.value;
+    
+    if (objectProperties.has(subject)) {
+      const property = objectProperties.get(subject)!;
+      
+      if (predicate === 'http://www.w3.org/2000/01/rdf-schema#domain') {
+        property.domain = quad.object.value;
+      } else if (predicate === 'http://www.w3.org/2000/01/rdf-schema#range') {
+        property.range = quad.object.value;
+      }
+    }
+  });
+  
+  // Fourth pass: create edges for relationships between classes
+  objectProperties.forEach((property) => {
+    if (property.domain && property.range) {
+      const sourceNode = classes.get(property.domain);
+      const targetNode = classes.get(property.range);
+      
+      if (sourceNode && targetNode) {
+        edges.push({
+          id: `edge-${edgeCount++}`,
+          source: sourceNode.id,
+          target: targetNode.id,
+          label: property.name,
+          type: 'default',
+          style: { 
+            stroke: 'hsl(var(--muted-foreground))', 
+            strokeWidth: 2 
+          },
+          labelStyle: { 
+            fill: 'hsl(var(--foreground))', 
+            fontSize: '12px' 
+          }
+        });
+      }
+    }
+  });
+  
+  console.log("Created class nodes:", classes.size);
+  console.log("Created relationship edges:", edges.length);
+  
+  return {
+    nodes: Array.from(classes.values()),
+    edges
+  };
+}
+
 export function parseTTLToEntities(ttlData: string): ParsedEntities {
   console.log("Starting TTL entity parsing...");
   const parser = new Parser();
@@ -366,7 +492,7 @@ export function parseTTLToEntities(ttlData: string): ParsedEntities {
     }
   });
   
-  // Third pass: identify properties
+  // Third pass: identify properties (including datatypes for human readable)
   quads.forEach((quad) => {
     const predicate = quad.predicate.value;
     const subject = quad.subject.value;
