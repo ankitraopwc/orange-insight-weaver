@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState, useRef, useEffect } from 'react';
 import { 
   ReactFlow, 
   Node, 
@@ -12,6 +12,9 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { parseTTLToGraph } from '@/lib/ttl-parser';
+import { calculateLayout } from '@/lib/graph-layout';
+import { Button } from '@/components/ui/button';
+import { RotateCcw } from 'lucide-react';
 
 interface BubbleGraphProps {
   ttlData?: string;
@@ -20,6 +23,9 @@ interface BubbleGraphProps {
 const nodeTypes = {};
 
 export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
+  
   const graphData = useMemo(() => {
     if (!ttlData) return { nodes: [], edges: [] };
     
@@ -31,14 +37,20 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
     }
   }, [ttlData]);
 
-  // Transform nodes to bubble style
-  const bubbleNodes: Node[] = useMemo(() => {
-    return graphData.nodes.map((node) => {
-      const label = (node.data as any)?.label || 'Unknown';
+  // Calculate layout with proper positioning
+  const layoutedNodes = useMemo(() => {
+    if (graphData.nodes.length === 0) return [];
+    
+    const baseNodes = graphData.nodes.map((node) => {
+      const label = node.data?.label || 'Unknown';
       const labelLength = typeof label === 'string' ? label.length : 8;
       
       return {
         ...node,
+        data: {
+          ...node.data,
+          label,
+        },
         style: {
           background: node.type === 'class' ? 'hsl(var(--primary))' : 
                      node.type === 'individual' ? 'hsl(var(--secondary))' : 
@@ -55,14 +67,29 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
           justifyContent: 'center',
           fontSize: '12px',
           fontWeight: 'bold',
-          textAlign: 'center',
-          wordWrap: 'break-word',
+          textAlign: 'center' as const,
+          wordBreak: 'break-word' as const,
           boxShadow: '0 4px 12px hsl(var(--primary) / 0.2)',
-          transition: 'all 0.3s ease',
         },
       };
     });
-  }, [graphData.nodes]);
+
+    return calculateLayout(baseNodes, graphData.edges, containerSize.width, containerSize.height);
+  }, [graphData.nodes, graphData.edges, containerSize]);
+
+  // Update container size
+  useEffect(() => {
+    const updateSize = () => {
+      if (containerRef.current) {
+        const { width, height } = containerRef.current.getBoundingClientRect();
+        setContainerSize({ width: width || 800, height: height || 600 });
+      }
+    };
+
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, []);
 
   const bubbleEdges: Edge[] = useMemo(() => {
     return graphData.edges.map((edge) => ({
@@ -82,13 +109,25 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
     }));
   }, [graphData.edges]);
 
-  const [nodes, , onNodesChange] = useNodesState(bubbleNodes);
+  const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
   const [edges, , onEdgesChange] = useEdgesState(bubbleEdges);
 
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
     console.log('Node clicked:', node);
     // Future: implement focus/zoom functionality
   }, []);
+
+  const relayoutGraph = useCallback(() => {
+    if (layoutedNodes.length > 0) {
+      const newLayout = calculateLayout(layoutedNodes, graphData.edges, containerSize.width, containerSize.height);
+      setNodes(newLayout);
+    }
+  }, [layoutedNodes, graphData.edges, containerSize, setNodes]);
+
+  // Update nodes when layout changes
+  useEffect(() => {
+    setNodes(layoutedNodes);
+  }, [layoutedNodes, setNodes]);
 
   if (!ttlData) {
     return (
@@ -99,7 +138,19 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   }
 
   return (
-    <div className="h-full w-full">
+    <div className="h-full w-full relative" ref={containerRef}>
+      <div className="absolute top-4 right-4 z-10">
+        <Button
+          onClick={relayoutGraph}
+          size="sm"
+          variant="outline"
+          className="bg-background/80 backdrop-blur-sm"
+        >
+          <RotateCcw className="h-4 w-4 mr-2" />
+          Re-layout
+        </Button>
+      </div>
+      
       <ReactFlow
         nodes={nodes}
         edges={edges}
