@@ -11,7 +11,7 @@ import {
   ConnectionMode 
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { parseTTLToGraph } from '@/lib/ttl-parser';
+import { buildClassERGraph } from '@/lib/ttl-parser';
 import { calculateLayout } from '@/lib/graph-layout';
 import { Button } from '@/components/ui/button';
 import { RotateCcw } from 'lucide-react';
@@ -30,7 +30,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
     if (!ttlData) return { nodes: [], edges: [] };
     
     try {
-      return parseTTLToGraph(ttlData);
+      return buildClassERGraph(ttlData);
     } catch (error) {
       console.error('Error parsing TTL for graph:', error);
       return { nodes: [], edges: [] };
@@ -52,21 +52,17 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
           label,
         },
         style: {
-          background: node.type === 'class' ? 'hsl(var(--primary))' : 
-                     node.type === 'individual' ? 'hsl(var(--secondary))' : 
-                     'hsl(var(--accent))',
-          color: node.type === 'class' ? 'hsl(var(--primary-foreground))' : 
-                 node.type === 'individual' ? 'hsl(var(--secondary-foreground))' : 
-                 'hsl(var(--accent-foreground))',
+          background: 'hsl(var(--primary))',
+          color: 'hsl(var(--primary-foreground))',
           border: '2px solid hsl(var(--border))',
-          borderRadius: '50%',
-          width: Math.max(80, Math.min(120, labelLength * 8)),
-          height: Math.max(80, Math.min(120, labelLength * 8)),
+          borderRadius: '8px',
+          width: Math.max(100, Math.min(160, labelLength * 10)),
+          height: Math.max(60, Math.min(80, 60)),
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '12px',
-          fontWeight: 'bold',
+          fontSize: '13px',
+          fontWeight: '600',
           textAlign: 'center' as const,
           wordBreak: 'break-word' as const,
           boxShadow: '0 4px 12px hsl(var(--primary) / 0.2)',
@@ -173,11 +169,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
         />
         <MiniMap 
           className="bg-card border border-border rounded-lg"
-          nodeColor={(node) => {
-            if (node.type === 'class') return 'hsl(var(--primary))';
-            if (node.type === 'individual') return 'hsl(var(--secondary))';
-            return 'hsl(var(--accent))';
-          }}
+          nodeColor={() => 'hsl(var(--primary))'}
           maskColor="hsl(var(--background) / 0.8)"
         />
       </ReactFlow>
