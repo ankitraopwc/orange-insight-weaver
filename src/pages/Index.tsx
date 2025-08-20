@@ -3,7 +3,7 @@ import { Header } from "@/components/Header";
 import { ActionPanel } from "@/components/ActionPanel";
 import { OntologyModal } from "@/components/OntologyModal";
 import { HierarchySidebar } from "@/components/HierarchySidebar";
-import { RelationshipGraph } from "@/components/RelationshipGraph";
+import { OntologyWorkspace } from "@/components/OntologyWorkspace";
 
 const Index = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -27,7 +27,7 @@ const Index = () => {
         <ActionPanel onOntologyClick={() => setIsModalOpen(true)} />
         
         <main className="min-h-[calc(100vh-8rem)]">
-          <RelationshipGraph ttlData={ttlData} />
+          <OntologyWorkspace ttlData={ttlData} />
         </main>
       </div>
 

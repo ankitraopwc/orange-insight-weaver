@@ -119,21 +119,8 @@ export const RelationshipGraph: React.FC<RelationshipGraphProps> = ({ ttlData })
   };
 
   return (
-    <div className="flex-1">
-      {ttlData && (
-        <div className="bg-card border border-border rounded-lg h-[calc(100vh-12rem)]">
-          <div className="p-4 border-b border-border">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-card-foreground">
-                Ontology Entity Structure
-              </h3>
-            </div>
-          </div>
-          <div className="p-6 h-[calc(100%-60px)] overflow-y-auto">
-            {renderHumanReadableFormat()}
-          </div>
-        </div>
-      )}
+    <div className="h-full p-6 overflow-y-auto">
+      {renderHumanReadableFormat()}
     </div>
   );
 };
