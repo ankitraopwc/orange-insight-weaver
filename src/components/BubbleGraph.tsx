@@ -63,7 +63,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: '13px',
-          fontWeight: '500',
+          fontWeight: 'bold',
           textAlign: 'center' as const,
           wordBreak: 'break-word' as const,
           boxShadow: '0 4px 12px hsl(var(--primary) / 0.2)',
@@ -102,7 +102,8 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
       },
       labelStyle: {
         fill: 'hsl(var(--foreground))',
-        fontSize: '14px',
+        fontSize: 14,
+        fontWeight: 700,
       },
     }));
   }, [graphData.edges]);
