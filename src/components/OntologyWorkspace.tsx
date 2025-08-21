@@ -20,7 +20,7 @@ export const OntologyWorkspace: React.FC<OntologyWorkspaceProps> = ({ ttlData })
       {/* Human Readable Panel */}
       <div 
         className={`transition-all duration-300 ease-in-out ${
-          isHumanReadablePanelOpen ? 'w-80' : 'w-0'
+          isHumanReadablePanelOpen ? 'w-96' : 'w-0'
         } overflow-hidden bg-card border-r border-border`}
       >
         <div className="h-full flex flex-col">
