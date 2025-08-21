@@ -20,7 +20,7 @@ export const OntologyWorkspace: React.FC<OntologyWorkspaceProps> = ({ ttlData })
       {/* Human Readable Panel */}
       <div 
         className={`transition-all duration-300 ease-in-out ${
-          isHumanReadablePanelOpen ? 'w-72' : 'w-0'
+          isHumanReadablePanelOpen ? 'w-80' : 'w-0'
         } overflow-hidden bg-card border-r border-border`}
       >
         <div className="h-full flex flex-col">
@@ -37,7 +37,7 @@ export const OntologyWorkspace: React.FC<OntologyWorkspaceProps> = ({ ttlData })
               <X className="h-4 w-4" />
             </Button>
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-hidden">
             <RelationshipGraph ttlData={ttlData} />
           </div>
         </div>

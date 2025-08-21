@@ -25,10 +25,7 @@ const nodeTypes = {};
 export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
-  const [showMiniMap, setShowMiniMap] = useState(() => {
-    const saved = localStorage.getItem('bubble-graph-minimap');
-    return saved ? JSON.parse(saved) : true;
-  });
+  const [showMiniMap, setShowMiniMap] = useState(true);
   
   const graphData = useMemo(() => {
     if (!ttlData) return { nodes: [], edges: [] };
@@ -60,12 +57,12 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
           color: 'hsl(var(--primary-foreground))',
           border: '2px solid hsl(var(--border))',
           borderRadius: '50%',
-          width: Math.max(60, Math.min(90, labelLength * 7)),
-          height: Math.max(60, Math.min(90, labelLength * 7)),
+          width: Math.max(80, Math.min(100, labelLength * 8)),
+          height: Math.max(80, Math.min(100, labelLength * 8)),
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '14px',
+          fontSize: '13px',
           fontWeight: '500',
           textAlign: 'center' as const,
           wordBreak: 'break-word' as const,
@@ -105,7 +102,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
       },
       labelStyle: {
         fill: 'hsl(var(--foreground))',
-        fontSize: '15px',
+        fontSize: '14px',
       },
     }));
   }, [graphData.edges]);
@@ -142,11 +139,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
     <div className="h-full w-full relative" ref={containerRef}>
       <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
         <Button
-          onClick={() => {
-            const newValue = !showMiniMap;
-            setShowMiniMap(newValue);
-            localStorage.setItem('bubble-graph-minimap', JSON.stringify(newValue));
-          }}
+          onClick={() => setShowMiniMap(!showMiniMap)}
           size="sm"
           variant="outline"
           className="bg-background/80 backdrop-blur-sm"
