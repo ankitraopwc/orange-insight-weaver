@@ -14,7 +14,7 @@ import '@xyflow/react/dist/style.css';
 import { buildClassERGraph } from '@/lib/ttl-parser';
 import { calculateLayout } from '@/lib/graph-layout';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Map, EyeOff } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 
 interface BubbleGraphProps {
   ttlData?: string;
@@ -25,7 +25,6 @@ const nodeTypes = {};
 export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
-  const [showMiniMap, setShowMiniMap] = useState(true);
   
   const graphData = useMemo(() => {
     if (!ttlData) return { nodes: [], edges: [] };
@@ -57,17 +56,17 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
           color: 'hsl(var(--primary-foreground))',
           border: '2px solid hsl(var(--border))',
           borderRadius: '50%',
-          width: Math.max(60, Math.min(80, labelLength * 6)),
-          height: Math.max(60, Math.min(80, labelLength * 6)),
+          width: Math.max(100, Math.min(120, labelLength * 10)),
+          height: Math.max(100, Math.min(120, labelLength * 10)),
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '13px',
-          fontWeight: 'bold',
+          fontSize: '11px',
+          fontWeight: '500',
           textAlign: 'center' as const,
           wordBreak: 'break-word' as const,
           boxShadow: '0 4px 12px hsl(var(--primary) / 0.2)',
-          padding: '6px',
+          padding: '8px',
         },
       };
     });
@@ -102,8 +101,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
       },
       labelStyle: {
         fill: 'hsl(var(--foreground))',
-        fontSize: 14,
-        fontWeight: 700,
+        fontSize: '12px',
       },
     }));
   }, [graphData.edges]);
@@ -138,15 +136,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
 
   return (
     <div className="h-full w-full relative" ref={containerRef}>
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-        <Button
-          onClick={() => setShowMiniMap(!showMiniMap)}
-          size="sm"
-          variant="outline"
-          className="bg-background/80 backdrop-blur-sm"
-        >
-          {showMiniMap ? <EyeOff className="h-4 w-4" /> : <Map className="h-4 w-4" />}
-        </Button>
+      <div className="absolute top-4 right-4 z-10">
         <Button
           onClick={relayoutGraph}
           size="sm"
@@ -177,16 +167,12 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
         />
         <Controls 
           className="bg-card border border-border rounded-lg shadow-lg"
-          position="top-right"
-          style={{ top: 60, right: 16 }}
         />
-        {showMiniMap && (
-          <MiniMap 
-            className="bg-card border border-border rounded-lg"
-            nodeColor={() => 'hsl(var(--primary))'}
-            maskColor="hsl(var(--background) / 0.8)"
-          />
-        )}
+        <MiniMap 
+          className="bg-card border border-border rounded-lg"
+          nodeColor={() => 'hsl(var(--primary))'}
+          maskColor="hsl(var(--background) / 0.8)"
+        />
       </ReactFlow>
     </div>
   );

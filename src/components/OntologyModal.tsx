@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,6 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
   const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const formRef = useRef<HTMLFormElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -49,10 +48,9 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
     setIsLoading(true);
 
     try {
-      // Create FormData from form to capture all form fields automatically
-      const form = formRef.current;
-      const formData = new FormData(form!);
+      const formData = new FormData();
       formData.append("zip_file", file);
+      formData.append("name", name);
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 540000); // 540 seconds timeout
@@ -119,14 +117,13 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto">
-            <form ref={formRef} className="space-y-4 px-4 pb-2">
+            <div className="space-y-4 px-4 pb-2">
               <div className="space-y-2">
                 <Label htmlFor="name" className="text-sm font-medium">
                   Name (Optional)
                 </Label>
                 <Input
                   id="name"
-                  name="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Enter ontology name"
@@ -157,7 +154,7 @@ export const OntologyModal = ({ open, onClose, onOntologyGenerated }: OntologyMo
                   </label>
                 </div>
               </div>
-            </form>
+            </div>
 
             <div className="flex justify-end space-x-3 px-4 py-3 border-t border-border bg-background">
               <Button variant="outline" onClick={handleClose}>
