@@ -10,8 +10,8 @@ const Index = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [ttlData, setTtlData] = useState(null);
 
-  const handleOntologyGenerated = (data: any) => {
-    setTtlData(data?.ttl || null);
+  const handleOntologyGenerated = (ttlString: string) => {
+    setTtlData(ttlString);
   };
 
   return (
