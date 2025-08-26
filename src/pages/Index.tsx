@@ -16,9 +16,19 @@ const Index = () => {
     setTtlData(ttlString);
   };
 
-  const handleSelectOntology = (filename: string) => {
-    // TODO: Implement loading the selected ontology file
-    console.log('Selected ontology:', filename);
+const handleSelectOntology = async (filename: string) => {
+    try {
+      const response = await fetch(`http://localhost:8000/download/${filename}`);
+      if (!response.ok) {
+        throw new Error(`Failed to download ontology: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      setTtlData(data.ttl);
+    } catch (error) {
+      console.error('Error downloading ontology:', error);
+      // Could add toast notification here for better UX
+    }
   };
 
   return (
