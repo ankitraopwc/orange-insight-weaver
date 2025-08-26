@@ -2,16 +2,23 @@ import { useState } from "react";
 import { Header } from "@/components/Header";
 import { ActionPanel } from "@/components/ActionPanel";
 import { OntologyModal } from "@/components/OntologyModal";
+import { OntologyListModal } from "@/components/OntologyListModal";
 import { HierarchySidebar } from "@/components/HierarchySidebar";
 import { OntologyWorkspace } from "@/components/OntologyWorkspace";
 
 const Index = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isListModalOpen, setIsListModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [ttlData, setTtlData] = useState(null);
 
   const handleOntologyGenerated = (ttlString: string) => {
     setTtlData(ttlString);
+  };
+
+  const handleSelectOntology = (filename: string) => {
+    // TODO: Implement loading the selected ontology file
+    console.log('Selected ontology:', filename);
   };
 
   return (
@@ -24,7 +31,10 @@ const Index = () => {
       />
       
       <div className={`transition-all duration-300 ${isSidebarOpen ? 'ml-80' : 'ml-0'}`}>
-        <ActionPanel onOntologyClick={() => setIsModalOpen(true)} />
+        <ActionPanel 
+          onCreateNewClick={() => setIsCreateModalOpen(true)}
+          onFetchAllClick={() => setIsListModalOpen(true)}
+        />
         
         <main className="min-h-[calc(100vh-8rem)]">
           <OntologyWorkspace ttlData={ttlData} />
@@ -32,9 +42,15 @@ const Index = () => {
       </div>
 
       <OntologyModal
-        open={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        open={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
         onOntologyGenerated={handleOntologyGenerated}
+      />
+
+      <OntologyListModal
+        open={isListModalOpen}
+        onClose={() => setIsListModalOpen(false)}
+        onSelectOntology={handleSelectOntology}
       />
     </div>
   );
