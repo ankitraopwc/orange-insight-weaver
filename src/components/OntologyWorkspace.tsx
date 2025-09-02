@@ -23,24 +23,26 @@ export const OntologyWorkspace: React.FC<OntologyWorkspaceProps> = ({ ttlData })
           isHumanReadablePanelOpen ? 'w-72' : 'w-0'
         } overflow-hidden bg-card border-r border-border`}
       >
-        <div className="h-full flex flex-col">
-          <div className="p-4 border-b border-border flex items-center justify-between">
-            <h3 className="font-semibold text-card-foreground">
-              Ontology Entity Structure
-            </h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsHumanReadablePanelOpen(false)}
-              className="h-8 w-8 p-0"
-            >
-              <X className="h-4 w-4" />
-            </Button>
+        {isHumanReadablePanelOpen && (
+          <div className="h-full flex flex-col">
+            <div className="p-4 border-b border-border flex items-center justify-between">
+              <h3 className="font-semibold text-card-foreground">
+                Ontology Entity Structure
+              </h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsHumanReadablePanelOpen(false)}
+                className="h-8 w-8 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <RelationshipGraph ttlData={ttlData} />
+            </div>
           </div>
-          <div className="flex-1 overflow-y-auto">
-            <RelationshipGraph ttlData={ttlData} />
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Toggle Button for Collapsed Panel */}
