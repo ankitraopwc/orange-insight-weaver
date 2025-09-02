@@ -82,8 +82,9 @@ export const HierarchySidebar = ({ isOpen, onToggle }: HierarchySidebarProps) =>
       {/* Sidebar */}
       <div
         className={cn(
-          "fixed left-0 top-16 h-[calc(100vh-4rem)] bg-sidebar border-r border-sidebar-border transition-transform duration-300 z-40",
-          isOpen ? "translate-x-0 w-80" : "-translate-x-full w-0"
+          "fixed left-0 top-16 h-[calc(100vh-4rem)] w-80 transition-transform duration-300 z-40",
+          isOpen ? "translate-x-0" : "-translate-x-full",
+          isOpen && "bg-sidebar border-r border-sidebar-border"
         )}
       >
         <div className="flex flex-col h-full">
