@@ -54,8 +54,8 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
     }
   }, [ttlData]);
 
-  // Calculate layout with ALL nodes first (stable positions)
-  const fullLayoutNodes = useMemo(() => {
+  // Initialize all nodes with layout and visibility flags (only recalculated on data change)
+  const initialNodes = useMemo(() => {
     if (graphData.nodes.length === 0) return [];
     
     const baseNodes = graphData.nodes.map((node) => {
@@ -100,84 +100,14 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
             : '0 3px 8px hsl(200, 75%, 50% / 0.2)', // Blue shadow for attributes
           padding: '8px',
         },
+        // Initially hide all attributes unless showAttributes is true
+        hidden: isAttribute && !showAttributes,
       };
     });
 
-    // Calculate layout only if no saved positions exist, otherwise use saved positions
-    const layoutedNodes = calculateLayout(baseNodes, graphData.edges, containerSize.width, containerSize.height);
-    
-    // Apply saved positions if they exist
-    return layoutedNodes.map(node => {
-      const savedPos = savedNodePositions.get(node.id);
-      if (savedPos) {
-        return {
-          ...node,
-          position: savedPos
-        };
-      }
-      return node;
-    });
-  }, [graphData.nodes, graphData.edges, containerSize, savedNodePositions]);
-
-  // Filter the full layout for display based on current settings
-  const layoutedNodes = useMemo(() => {
-    const filteredNodes = fullLayoutNodes.filter(node => {
-      if (showAttributes) return true;
-      if (node.data?.type === 'class') return true;
-      if (node.data?.type === 'attribute') {
-        // Show attribute if any connected class is expanded
-        const connectedClasses = graphData.edges
-          .filter(edge => edge.target === node.id)
-          .map(edge => edge.source);
-        return connectedClasses.some(classId => expandedClasses.has(classId));
-      }
-      return false;
-    });
-
-    // Position attributes in circles around expanded classes
-    return filteredNodes.map(node => {
-      if (node.data?.type === 'attribute' && !showAttributes) {
-        // Find the connected class that is expanded
-        const connectedClass = graphData.edges
-          .filter(edge => edge.target === node.id)
-          .find(edge => expandedClasses.has(edge.source));
-          
-        if (connectedClass) {
-          const classNode = fullLayoutNodes.find(n => n.id === connectedClass.source);
-          if (classNode) {
-            // Get all attributes for this class
-            const classAttributes = graphData.edges
-              .filter(edge => edge.source === connectedClass.source && 
-                graphData.nodes.find(n => n.id === edge.target)?.data?.type === 'attribute')
-              .map(edge => edge.target);
-            
-            const attributeIndex = classAttributes.indexOf(node.id);
-            const totalAttributes = classAttributes.length;
-            
-            // Calculate circular position around class with collision avoidance
-            const baseRadius = 140; // Increased base distance from class center
-            const labelLength = typeof node.data?.label === 'string' ? node.data.label.length : 8;
-            const nodeSize = Math.max(50, Math.min(70, labelLength * 6));
-            const minDistance = nodeSize + 20; // Minimum distance between attributes
-            
-            // Use a radius that ensures no collision based on number of attributes
-            const circumference = totalAttributes * minDistance;
-            const calculatedRadius = Math.max(baseRadius, circumference / (2 * Math.PI));
-            
-            const angle = (attributeIndex / totalAttributes) * 2 * Math.PI;
-            const x = classNode.position.x + Math.cos(angle) * calculatedRadius;
-            const y = classNode.position.y + Math.sin(angle) * calculatedRadius;
-            
-            return {
-              ...node,
-              position: { x, y }
-            };
-          }
-        }
-      }
-      return node;
-    });
-  }, [fullLayoutNodes, showAttributes, expandedClasses, graphData.edges, graphData.nodes]);
+    // Calculate initial layout
+    return calculateLayout(baseNodes, graphData.edges, containerSize.width, containerSize.height);
+  }, [graphData.nodes, graphData.edges, containerSize.width, containerSize.height, ttlData]); // Only recalculate on data change
 
   // Update container size
   useEffect(() => {
@@ -235,32 +165,150 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-  // Save node positions when they are moved by user
+  // Initialize nodes state with all nodes and their visibility
+  useEffect(() => {
+    if (initialNodes.length > 0) {
+      // Apply saved positions to initial nodes
+      const nodesWithSavedPositions = initialNodes.map(node => {
+        const savedPos = savedNodePositions.get(node.id);
+        return savedPos ? { ...node, position: savedPos } : node;
+      });
+      
+      setNodes(nodesWithSavedPositions);
+    }
+  }, [initialNodes, savedNodePositions, setNodes]);
+
+  // Update node visibility when showAttributes or expandedClasses change
+  useEffect(() => {
+    setNodes(currentNodes => 
+      currentNodes.map(node => {
+        const isAttribute = node.data?.type === 'attribute';
+        const isClass = node.data?.type === 'class';
+        
+        if (isClass) {
+          // Classes are always visible
+          return { ...node, hidden: false };
+        }
+        
+        if (isAttribute) {
+          if (showAttributes) {
+            // All attributes visible when global toggle is on
+            return { ...node, hidden: false };
+          } else {
+            // Check if any connected class is expanded
+            const connectedClasses = graphData.edges
+              .filter(edge => edge.target === node.id)
+              .map(edge => edge.source);
+            const shouldShow = connectedClasses.some(classId => expandedClasses.has(classId));
+            
+            // Position attributes in circle around expanded class if visible
+            if (shouldShow) {
+              const connectedClass = graphData.edges
+                .filter(edge => edge.target === node.id)
+                .find(edge => expandedClasses.has(edge.source));
+                
+              if (connectedClass) {
+                const classNode = currentNodes.find(n => n.id === connectedClass.source);
+                if (classNode) {
+                  // Get all attributes for this class
+                  const classAttributes = graphData.edges
+                    .filter(edge => edge.source === connectedClass.source && 
+                      graphData.nodes.find(n => n.id === edge.target)?.data?.type === 'attribute')
+                    .map(edge => edge.target);
+                  
+                  const attributeIndex = classAttributes.indexOf(node.id);
+                  const totalAttributes = classAttributes.length;
+                  
+                  // Calculate circular position around class with collision avoidance
+                  const baseRadius = 140;
+                  const labelLength = typeof node.data?.label === 'string' ? node.data.label.length : 8;
+                  const nodeSize = Math.max(50, Math.min(70, labelLength * 6));
+                  const minDistance = nodeSize + 20;
+                  
+                  const circumference = totalAttributes * minDistance;
+                  const calculatedRadius = Math.max(baseRadius, circumference / (2 * Math.PI));
+                  
+                  const angle = (attributeIndex / totalAttributes) * 2 * Math.PI;
+                  const x = classNode.position.x + Math.cos(angle) * calculatedRadius;
+                  const y = classNode.position.y + Math.sin(angle) * calculatedRadius;
+                  
+                  return {
+                    ...node,
+                    hidden: false,
+                    position: { x, y }
+                  };
+                }
+              }
+            }
+            
+            return { ...node, hidden: !shouldShow };
+          }
+        }
+        
+        return node;
+      })
+    );
+  }, [showAttributes, expandedClasses, graphData.edges, graphData.nodes, setNodes]);
+
+  // Targeted drag handler that only updates dragged node and repositions its attributes
   const handleNodesChange = useCallback((changes: any[]) => {
     onNodesChange(changes);
     
-    // Save positions when nodes are dragged
     changes.forEach(change => {
       if (change.type === 'position' && change.position && change.dragging === false) {
+        // Save position
         setSavedNodePositions(prev => {
           const newMap = new Map(prev);
           newMap.set(change.id, { x: change.position.x, y: change.position.y });
           return newMap;
         });
+        
+        // If a class was dragged and has expanded attributes, reposition them
+        const draggedNode = nodes.find(n => n.id === change.id);
+        if (draggedNode?.data?.type === 'class' && expandedClasses.has(change.id)) {
+          setNodes(currentNodes => {
+            // Find attributes connected to this class
+            const classAttributes = graphData.edges
+              .filter(edge => edge.source === change.id && 
+                graphData.nodes.find(n => n.id === edge.target)?.data?.type === 'attribute')
+              .map(edge => edge.target);
+            
+            return currentNodes.map(node => {
+              if (classAttributes.includes(node.id) && !node.hidden) {
+                // Recalculate circular position
+                const attributeIndex = classAttributes.indexOf(node.id);
+                const totalAttributes = classAttributes.length;
+                
+                const baseRadius = 140;
+                const labelLength = typeof node.data?.label === 'string' ? node.data.label.length : 8;
+                const nodeSize = Math.max(50, Math.min(70, labelLength * 6));
+                const minDistance = nodeSize + 20;
+                
+                const circumference = totalAttributes * minDistance;
+                const calculatedRadius = Math.max(baseRadius, circumference / (2 * Math.PI));
+                
+                const angle = (attributeIndex / totalAttributes) * 2 * Math.PI;
+                const x = change.position.x + Math.cos(angle) * calculatedRadius;
+                const y = change.position.y + Math.sin(angle) * calculatedRadius;
+                
+                return {
+                  ...node,
+                  position: { x, y }
+                };
+              }
+              return node;
+            });
+          });
+        }
       }
     });
-  }, [onNodesChange]);
+  }, [onNodesChange, nodes, expandedClasses, graphData.edges, graphData.nodes, setNodes]);
 
   // Clear saved positions and expanded classes when data changes
   useEffect(() => {
     setSavedNodePositions(new Map<string, { x: number; y: number }>());
     setExpandedClasses(new Set()); // Reset expanded classes for new graph
   }, [ttlData]);
-
-  // Update displayed nodes based on filtering
-  useEffect(() => {
-    setNodes(layoutedNodes);
-  }, [layoutedNodes, setNodes]);
 
   const onNodeDoubleClick = useCallback((event: React.MouseEvent, node: Node) => {
     console.log('Node double-clicked:', node);
@@ -280,7 +328,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   }, [showAttributes]);
 
   const relayoutGraph = useCallback(async () => {
-    if (fullLayoutNodes.length > 0) {
+    if (initialNodes.length > 0) {
       // Clear saved positions to force recalculation
       setSavedNodePositions(new Map<string, { x: number; y: number }>());
       
@@ -313,6 +361,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
             boxShadow: isClass ? '0 6px 16px hsl(32, 85%, 45% / 0.3)' : '0 3px 8px hsl(200, 75%, 50% / 0.2)',
             padding: '8px',
           },
+          hidden: isAttribute && !showAttributes,
         };
       });
       
@@ -335,34 +384,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
         setNodes(newLayout);
       }
     }
-  }, [graphData.nodes, graphData.edges, containerSize, setNodes, useHierarchicalLayout]);
-
-  // Update nodes with async layout calculation (hierarchical only)
-  useEffect(() => {
-    const updateLayout = async () => {
-      if (fullLayoutNodes.length === 0) return;
-      
-      if (useHierarchicalLayout && savedNodePositions.size === 0) {
-        // Only use hierarchical layout if no saved positions exist
-        try {
-          const hierarchicalNodes = await calculateHierarchicalLayout(
-            fullLayoutNodes, 
-            graphData.edges,
-            containerSize.width, 
-            containerSize.height
-          );
-          setNodes(hierarchicalNodes);
-        } catch (error) {
-          console.error('Hierarchical layout failed, using force layout:', error);
-          setNodes(fullLayoutNodes);
-        }
-      } else {
-        setNodes(fullLayoutNodes);
-      }
-    };
-    
-    updateLayout();
-  }, [fullLayoutNodes, useHierarchicalLayout, graphData.edges, containerSize, setNodes, savedNodePositions.size]);
+  }, [initialNodes, graphData.nodes, graphData.edges, containerSize, setNodes, useHierarchicalLayout, showAttributes]);
 
   // Update edges when bubbleEdges changes
   useEffect(() => {
