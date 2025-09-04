@@ -1,7 +1,5 @@
-import ELK, { ElkNode, ElkExtendedEdge } from 'elkjs';
+import { ElkNode, ElkExtendedEdge } from 'elkjs';
 import { Node, Edge } from '@xyflow/react';
-
-const elk = new ELK();
 
 export const calculateHierarchicalLayout = async (
   nodes: Node[], 
@@ -9,9 +7,13 @@ export const calculateHierarchicalLayout = async (
   width: number = 800, 
   height: number = 600
 ): Promise<Node[]> => {
+  // Lazy load ELK to avoid import issues
+  const ELK = (await import('elkjs/lib/elk.bundled.js')).default;
+  const elk = new ELK();
+  
   // Separate classes and attributes for layered layout
-  const classNodes = nodes.filter(node => node.type === 'class');
-  const attributeNodes = nodes.filter(node => node.type === 'attribute');
+  const classNodes = nodes.filter(node => node.data?.type === 'class');
+  const attributeNodes = nodes.filter(node => node.data?.type === 'attribute');
   
   // Create ELK nodes
   const elkNodes: ElkNode[] = nodes.map(node => ({
@@ -20,8 +22,8 @@ export const calculateHierarchicalLayout = async (
     height: 80,
     // Add type-based properties for layering
     properties: {
-      'org.eclipse.elk.layered.layering.nodePromotion.strategy': node.type === 'class' ? 'INTERACTIVE' : 'NONE',
-      'org.eclipse.elk.layered.layering.layer': node.type === 'class' ? '0' : '1'
+      'org.eclipse.elk.layered.layering.nodePromotion.strategy': node.data?.type === 'class' ? 'INTERACTIVE' : 'NONE',
+      'org.eclipse.elk.layered.layering.layer': node.data?.type === 'class' ? '0' : '1'
     }
   }));
 
