@@ -16,6 +16,7 @@ import { buildClassERGraph } from '@/lib/ttl-parser';
 import { calculateLayout } from '@/lib/graph-layout';
 import { calculateHierarchicalLayout } from '@/lib/elk-layout';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { RotateCcw, Map as MapIcon, EyeOff, Eye } from 'lucide-react';
 
 interface BubbleGraphProps {
@@ -40,6 +41,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   const [collapsedClasses, setCollapsedClasses] = useState<Set<string>>(new Set());
   const [savedNodePositions, setSavedNodePositions] = useState<Map<string, { x: number; y: number }>>(new Map<string, { x: number; y: number }>());
   const [manuallyMovedNodes, setManuallyMovedNodes] = useState<Set<string>>(new Set());
+  const [highlightedEdges, setHighlightedEdges] = useState<Set<string>>(new Set());
   
   const graphData = useMemo(() => {
     if (!ttlData) return { nodes: [], edges: [] };
@@ -146,23 +148,34 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
       return false;
     });
 
-    return filteredEdges.map((edge) => ({
-      ...edge,
-      type: 'default', // Changed from 'smoothstep' to default Bezier
-      style: {
-        stroke: 'hsl(var(--muted-foreground))',
-        strokeWidth: 2,
-      },
-      labelBgStyle: {
-        fill: 'hsl(var(--background))',
-        fillOpacity: 0.8,
-      },
-      labelStyle: {
-        fill: 'hsl(var(--foreground))',
-        fontSize: '15px',
-      },
-    }));
-  }, [graphData.edges, showAttributes, graphData.nodes, expandedClasses, collapsedClasses]);
+    return filteredEdges.map((edge) => {
+      const edgeId = `${edge.source}-${edge.target}`;
+      const isHighlighted = highlightedEdges.has(edgeId);
+      
+      // Get source and target node data for edge label
+      const sourceNode = graphData.nodes.find(n => n.id === edge.source);
+      const targetNode = graphData.nodes.find(n => n.id === edge.target);
+      
+      return {
+        ...edge,
+        type: 'default',
+        label: edge.label || `${sourceNode?.data?.label || edge.source} → ${targetNode?.data?.label || edge.target}`,
+        style: {
+          stroke: isHighlighted ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
+          strokeWidth: isHighlighted ? 4 : 2,
+        },
+        labelBgStyle: {
+          fill: 'hsl(var(--background))',
+          fillOpacity: 0.8,
+        },
+        labelStyle: {
+          fill: 'hsl(var(--foreground))',
+          fontSize: '12px',
+          fontWeight: '500',
+        },
+      };
+    });
+  }, [graphData.edges, showAttributes, graphData.nodes, expandedClasses, collapsedClasses, highlightedEdges]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -360,6 +373,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
     setExpandedClasses(new Set());
     setCollapsedClasses(new Set());
     setManuallyMovedNodes(new Set());
+    setHighlightedEdges(new Set());
   }, [ttlData]);
 
   // Universal double-click handler that works in both modes
@@ -393,6 +407,22 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
     }
   }, [showAttributes]);
 
+  // Edge click handler for highlighting
+  const onEdgeClick = useCallback((event: React.MouseEvent, edge: Edge) => {
+    event.stopPropagation();
+    const edgeId = `${edge.source}-${edge.target}`;
+    
+    setHighlightedEdges(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(edgeId)) {
+        newSet.delete(edgeId);
+      } else {
+        newSet.add(edgeId);
+      }
+      return newSet;
+    });
+  }, []);
+
   const relayoutGraph = useCallback(async () => {
     if (initialNodes.length > 0) {
       // Clear all tracking state to force fresh calculation
@@ -400,6 +430,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
       setExpandedClasses(new Set());
       setCollapsedClasses(new Set());
       setManuallyMovedNodes(new Set());
+      setHighlightedEdges(new Set());
       
       // Recalculate fresh layout using force layout
       const baseNodes = graphData.nodes.map((node) => {
@@ -453,82 +484,85 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   }
 
   return (
-    <div className="h-full w-full relative" ref={containerRef}>
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-        <Button
-          onClick={() => {
-            const newValue = !showAttributes;
-            setShowAttributes(newValue);
-            localStorage.setItem('bubble-graph-attributes', JSON.stringify(newValue));
-            // Clean up state when toggling
-            if (newValue) {
-              // Clear expanded classes when turning attributes ON globally
-              setExpandedClasses(new Set());
-            } else {
-              // Clear collapsed classes when turning attributes OFF globally
-              setCollapsedClasses(new Set());
-            }
-          }}
-          size="sm"
-          variant="outline"
-          className="bg-background/80 backdrop-blur-sm"
+    <TooltipProvider>
+      <div className="h-full w-full relative" ref={containerRef}>
+        <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+          <Button
+            onClick={() => {
+              const newValue = !showAttributes;
+              setShowAttributes(newValue);
+              localStorage.setItem('bubble-graph-attributes', JSON.stringify(newValue));
+              // Clean up state when toggling
+              if (newValue) {
+                // Clear expanded classes when turning attributes ON globally
+                setExpandedClasses(new Set());
+              } else {
+                // Clear collapsed classes when turning attributes OFF globally
+                setCollapsedClasses(new Set());
+              }
+            }}
+            size="sm"
+            variant="outline"
+            className="bg-background/80 backdrop-blur-sm"
+          >
+            {showAttributes ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            <span className="ml-2">Attributes</span>
+          </Button>
+          <Button
+            onClick={() => {
+              const newValue = !showMiniMap;
+              setShowMiniMap(newValue);
+              localStorage.setItem('bubble-graph-minimap', JSON.stringify(newValue));
+            }}
+            size="sm"
+            variant="outline"
+            className="bg-background/80 backdrop-blur-sm"
+          >
+            {showMiniMap ? <EyeOff className="h-4 w-4" /> : <MapIcon className="h-4 w-4" />}
+          </Button>
+          <Button
+            onClick={relayoutGraph}
+            size="sm"
+            variant="outline"
+            className="bg-background/80 backdrop-blur-sm"
+          >
+            <RotateCcw className="h-4 w-4 mr-2" />
+            Re-layout
+          </Button>
+        </div>
+        
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={handleNodesChange}
+          onEdgesChange={onEdgesChange}
+          onNodeDoubleClick={onNodeDoubleClick}
+          onEdgeClick={onEdgeClick}
+          nodeTypes={nodeTypes}
+          connectionMode={ConnectionMode.Loose}
+          fitView
+          fitViewOptions={{ padding: 0.2, minZoom: 0.1, maxZoom: 4 }}
+          className="bg-background"
         >
-          {showAttributes ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          <span className="ml-2">Attributes</span>
-        </Button>
-        <Button
-          onClick={() => {
-            const newValue = !showMiniMap;
-            setShowMiniMap(newValue);
-            localStorage.setItem('bubble-graph-minimap', JSON.stringify(newValue));
-          }}
-          size="sm"
-          variant="outline"
-          className="bg-background/80 backdrop-blur-sm"
-        >
-          {showMiniMap ? <EyeOff className="h-4 w-4" /> : <MapIcon className="h-4 w-4" />}
-        </Button>
-        <Button
-          onClick={relayoutGraph}
-          size="sm"
-          variant="outline"
-          className="bg-background/80 backdrop-blur-sm"
-        >
-          <RotateCcw className="h-4 w-4 mr-2" />
-          Re-layout
-        </Button>
-      </div>
-      
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={handleNodesChange}
-        onEdgesChange={onEdgesChange}
-        onNodeDoubleClick={onNodeDoubleClick}
-        nodeTypes={nodeTypes}
-        connectionMode={ConnectionMode.Loose}
-        fitView
-        fitViewOptions={{ padding: 0.2, minZoom: 0.1, maxZoom: 4 }}
-        className="bg-background"
-      >
-        <Background 
-          color="hsl(var(--muted))" 
-          gap={20} 
-          size={1}
-        />
-        <Controls 
-          className="bg-card border border-border rounded-lg shadow-lg"
-          position="top-right"
-          style={{ top: 60, right: 16 }}
-        />
-        {showMiniMap && (
-          <MiniMap 
-            className="bg-card border border-border rounded-lg"
-            nodeColor={() => 'hsl(var(--primary))'}
-            maskColor="hsl(var(--background) / 0.8)"
+          <Background 
+            color="hsl(var(--muted))" 
+            gap={20} 
+            size={1}
           />
-        )}
-      </ReactFlow>
-    </div>
+          <Controls 
+            className="bg-card border border-border rounded-lg shadow-lg"
+            position="top-right"
+            style={{ top: 60, right: 16 }}
+          />
+          {showMiniMap && (
+            <MiniMap 
+              className="bg-card border border-border rounded-lg"
+              nodeColor={() => 'hsl(var(--primary))'}
+              maskColor="hsl(var(--background) / 0.8)"
+            />
+          )}
+        </ReactFlow>
+      </div>
+    </TooltipProvider>
   );
 };
