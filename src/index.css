@@ -113,3 +113,14 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  /* React Flow edge label appears on hover */
+  .react-flow__edge .react-flow__edge-text {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  .react-flow__edge:hover .react-flow__edge-text {
+    opacity: 1;
+  }
+}
