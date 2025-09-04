@@ -29,78 +29,92 @@ export const RelationshipGraph: React.FC<RelationshipGraphProps> = ({ ttlData })
       
       if (parsedData.entities.length === 0) {
         return (
-          <div className="text-muted-foreground">
+          <div className="text-muted-foreground p-4">
             No entities found in TTL data
           </div>
         );
       }
 
       return (
-        <div className="space-y-4">
+        <div className="space-y-2">
           {parsedData.entities.map((entity) => {
             const isExpanded = expandedClasses.has(entity.name);
             
             return (
-              <div key={entity.name} className="bg-muted/50 p-4 rounded-lg">
+              <div key={entity.name} className="border border-border rounded-lg overflow-hidden">
                 <div 
-                  className="flex items-center cursor-pointer mb-3"
+                  className="flex items-center cursor-pointer p-3 hover:bg-muted/50 transition-colors"
                   onClick={() => toggleClass(entity.name)}
                 >
                   {isExpanded ? (
-                    <ChevronDown className="h-4 w-4 mr-2" />
+                    <ChevronDown className="h-4 w-4 mr-2 text-muted-foreground" />
                   ) : (
-                    <ChevronRight className="h-4 w-4 mr-2" />
+                    <ChevronRight className="h-4 w-4 mr-2 text-muted-foreground" />
                   )}
-                  <h4 className="font-semibold text-lg text-foreground">{entity.name}</h4>
+                  <h4 className="font-medium text-foreground">{entity.name}</h4>
                 </div>
                 
-                {entity.comment && (
-                  <p className="text-sm text-muted-foreground mb-3 ml-6">
-                    {entity.comment}
-                  </p>
-                )}
-                
                 {isExpanded && (
-                  <div className="ml-6 space-y-3">
-                    {entity.properties.length > 0 && (
-                      <div>
-                        <h5 className="font-medium text-foreground mb-2">Properties:</h5>
-                        <ul className="space-y-1 ml-4">
-                          {entity.properties.slice(0, 10).map((prop, index) => (
-                            <li key={index} className="text-muted-foreground text-sm">
-                              • {prop.name} {prop.range && `(${prop.range})`}
-                            </li>
-                          ))}
-                          {entity.properties.length > 10 && (
-                            <li className="text-muted-foreground text-sm italic">
-                              ... and {entity.properties.length - 10} more properties
-                            </li>
-                          )}
-                        </ul>
+                  <div className="border-t border-border bg-muted/20">
+                    {entity.comment && (
+                      <div className="p-3 border-b border-border bg-muted/30">
+                        <p className="text-sm text-muted-foreground italic">
+                          {entity.comment}
+                        </p>
                       </div>
                     )}
                     
-                    {entity.relationships.length > 0 && (
-                      <div>
-                        <h5 className="font-medium text-foreground mb-2">Relationships:</h5>
-                        <ul className="space-y-1 ml-4">
-                          {entity.relationships.slice(0, 10).map((rel, index) => (
-                            <li key={index} className="text-muted-foreground text-sm">
-                              • {rel.name} {rel.range && `(${rel.range})`}
-                            </li>
-                          ))}
-                          {entity.relationships.length > 10 && (
-                            <li className="text-muted-foreground text-sm italic">
-                              ... and {entity.relationships.length - 10} more relationships
-                            </li>
-                          )}
-                        </ul>
-                      </div>
-                    )}
-                    
-                    {entity.properties.length === 0 && entity.relationships.length === 0 && (
-                      <p className="text-muted-foreground text-sm ml-4">No properties or relationships defined</p>
-                    )}
+                    <div className="p-3 space-y-4">
+                      {/* Attributes Section */}
+                      {entity.properties.length > 0 && (
+                        <div>
+                          <h5 className="font-medium text-foreground mb-2 text-sm uppercase tracking-wide">
+                            Attributes ({entity.properties.length})
+                          </h5>
+                          <div className="space-y-1">
+                            {entity.properties.map((prop, index) => (
+                              <div key={index} className="flex items-start gap-2 text-sm">
+                                <div className="w-2 h-2 rounded-full bg-blue-500 mt-2 flex-shrink-0"></div>
+                                <div className="flex-1">
+                                  <span className="text-foreground font-mono">{prop.name}</span>
+                                  {prop.range && (
+                                    <span className="text-muted-foreground ml-2">: {prop.range}</span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Relations Section */}
+                      {entity.relationships.length > 0 && (
+                        <div>
+                          <h5 className="font-medium text-foreground mb-2 text-sm uppercase tracking-wide">
+                            Relations ({entity.relationships.length})
+                          </h5>
+                          <div className="space-y-1">
+                            {entity.relationships.map((rel, index) => (
+                              <div key={index} className="flex items-start gap-2 text-sm">
+                                <div className="w-2 h-2 rounded-full bg-green-500 mt-2 flex-shrink-0"></div>
+                                <div className="flex-1">
+                                  <span className="text-foreground font-mono">{rel.name}</span>
+                                  {rel.range && (
+                                    <span className="text-muted-foreground ml-2">→ {rel.range}</span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {entity.properties.length === 0 && entity.relationships.length === 0 && (
+                        <p className="text-muted-foreground text-sm text-center py-4">
+                          No attributes or relations defined
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -111,7 +125,7 @@ export const RelationshipGraph: React.FC<RelationshipGraphProps> = ({ ttlData })
     } catch (error) {
       console.error("Error parsing TTL for human readable format:", error);
       return (
-        <div className="text-muted-foreground">
+        <div className="text-destructive p-4 text-center">
           Error parsing TTL data for display
         </div>
       );
