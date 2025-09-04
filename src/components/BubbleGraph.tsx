@@ -18,29 +18,12 @@ import { calculateHierarchicalLayout } from '@/lib/elk-layout';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { RotateCcw, Map as MapIcon, EyeOff, Eye } from 'lucide-react';
-import type { NodeProps } from '@xyflow/react';
 
 interface BubbleGraphProps {
   ttlData?: string;
 }
 
-const BubbleNode: React.FC<NodeProps> = ({ data }) => {
-  const label = typeof data?.label === 'string' ? data.label : '';
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div className="w-full h-full flex items-center justify-center select-none" title={label}>
-          <span className="text-foreground text-sm font-medium text-center leading-snug px-2">
-            {label}
-          </span>
-        </div>
-      </TooltipTrigger>
-      <TooltipContent side="top">{label}</TooltipContent>
-    </Tooltip>
-  );
-};
-
-const nodeTypes = { bubble: BubbleNode };
+const nodeTypes = {};
 
 export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -86,23 +69,22 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
       
       return {
         ...node,
-        type: 'bubble',
         data: {
           ...node.data,
           label,
         },
         style: {
           background: isClass 
-            ? 'hsl(32, 95%, 55%)'
+            ? 'hsl(32, 95%, 55%)' // Bright orange for classes
             : isAttribute 
-            ? 'hsl(200, 85%, 65%)'
-            : 'hsl(32, 85%, 60%)',
+            ? 'hsl(200, 85%, 65%)' // Blue for attributes to differentiate
+            : 'hsl(32, 85%, 60%)', // Default orange
           color: isClass 
-            ? 'hsl(32, 100%, 15%)'
-            : 'hsl(200, 90%, 20%)',
+            ? 'hsl(32, 100%, 15%)' // Dark orange text for classes
+            : 'hsl(200, 90%, 20%)', // Dark blue text for attributes
           border: isClass 
-            ? '3px solid hsl(32, 90%, 45%)'
-            : '2px solid hsl(200, 75%, 50%)',
+            ? '3px solid hsl(32, 90%, 45%)' // Darker orange border for classes
+            : '2px solid hsl(200, 75%, 50%)', // Blue border for attributes
           borderRadius: '50%',
           width: baseSize,
           height: baseSize,
@@ -114,10 +96,11 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
           textAlign: 'center' as const,
           wordBreak: 'break-word' as const,
           boxShadow: isClass 
-            ? '0 6px 16px hsl(32, 85%, 45% / 0.3)'
-            : '0 3px 8px hsl(200, 75%, 50% / 0.2)',
+            ? '0 6px 16px hsl(32, 85%, 45% / 0.3)' // Stronger shadow for classes
+            : '0 3px 8px hsl(200, 75%, 50% / 0.2)', // Blue shadow for attributes
           padding: '8px',
         },
+        // Initially hide all attributes unless showAttributes is true
         hidden: isAttribute && !showAttributes,
       };
     });
@@ -460,7 +443,6 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
         
         return {
           ...node,
-          type: 'bubble',
           data: { ...node.data, label },
           style: {
             background: isClass ? 'hsl(32, 95%, 55%)' : isAttribute ? 'hsl(200, 85%, 65%)' : 'hsl(32, 85%, 60%)',
