@@ -12,14 +12,7 @@ export const OntologyWorkspace: React.FC<OntologyWorkspaceProps> = ({ ttlData })
   const [isHumanReadablePanelOpen, setIsHumanReadablePanelOpen] = useState(true);
 
   if (!ttlData) {
-    return (
-      <div className="flex h-[calc(100vh-8rem)] items-center justify-center">
-        <div className="text-center text-muted-foreground">
-          <p className="text-lg font-medium mb-2">No ontology loaded</p>
-          <p className="text-sm">Create a new ontology or load an existing one to get started</p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
