@@ -33,7 +33,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   });
   const [showAttributes, setShowAttributes] = useState(() => {
     const saved = localStorage.getItem('bubble-graph-attributes');
-    return saved ? JSON.parse(saved) : true;
+    return saved ? JSON.parse(saved) : false; // Default to hidden
   });
   const [useHierarchicalLayout, setUseHierarchicalLayout] = useState(() => {
     const saved = localStorage.getItem('bubble-graph-hierarchical');
@@ -77,14 +77,14 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
           background: isClass 
             ? 'hsl(32, 95%, 55%)' // Bright orange for classes
             : isAttribute 
-            ? 'hsl(32, 80%, 70%)' // Lighter orange for attributes
+            ? 'hsl(200, 85%, 65%)' // Blue for attributes to differentiate
             : 'hsl(32, 85%, 60%)', // Default orange
           color: isClass 
             ? 'hsl(32, 100%, 15%)' // Dark orange text for classes
-            : 'hsl(32, 90%, 20%)', // Slightly lighter dark text for attributes
+            : 'hsl(200, 90%, 20%)', // Dark blue text for attributes
           border: isClass 
             ? '3px solid hsl(32, 90%, 45%)' // Darker orange border for classes
-            : '2px solid hsl(32, 75%, 55%)', // Medium orange border for attributes
+            : '2px solid hsl(200, 75%, 50%)', // Blue border for attributes
           borderRadius: '50%',
           width: baseSize,
           height: baseSize,
@@ -97,7 +97,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
           wordBreak: 'break-word' as const,
           boxShadow: isClass 
             ? '0 6px 16px hsl(32, 85%, 45% / 0.3)' // Stronger shadow for classes
-            : '0 3px 8px hsl(32, 75%, 55% / 0.2)', // Subtle shadow for attributes
+            : '0 3px 8px hsl(200, 75%, 50% / 0.2)', // Blue shadow for attributes
           padding: '8px',
         },
       };
@@ -154,11 +154,19 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
             const attributeIndex = classAttributes.indexOf(node.id);
             const totalAttributes = classAttributes.length;
             
-            // Calculate circular position around class
-            const radius = 120; // Distance from class center
+            // Calculate circular position around class with collision avoidance
+            const baseRadius = 140; // Increased base distance from class center
+            const labelLength = typeof node.data?.label === 'string' ? node.data.label.length : 8;
+            const nodeSize = Math.max(50, Math.min(70, labelLength * 6));
+            const minDistance = nodeSize + 20; // Minimum distance between attributes
+            
+            // Use a radius that ensures no collision based on number of attributes
+            const circumference = totalAttributes * minDistance;
+            const calculatedRadius = Math.max(baseRadius, circumference / (2 * Math.PI));
+            
             const angle = (attributeIndex / totalAttributes) * 2 * Math.PI;
-            const x = classNode.position.x + Math.cos(angle) * radius;
-            const y = classNode.position.y + Math.sin(angle) * radius;
+            const x = classNode.position.x + Math.cos(angle) * calculatedRadius;
+            const y = classNode.position.y + Math.sin(angle) * calculatedRadius;
             
             return {
               ...node,
@@ -243,9 +251,10 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
     });
   }, [onNodesChange]);
 
-  // Clear saved positions when data changes
+  // Clear saved positions and expanded classes when data changes
   useEffect(() => {
     setSavedNodePositions(new Map<string, { x: number; y: number }>());
+    setExpandedClasses(new Set()); // Reset expanded classes for new graph
   }, [ttlData]);
 
   // Update displayed nodes based on filtering
@@ -288,9 +297,9 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
           ...node,
           data: { ...node.data, label },
           style: {
-            background: isClass ? 'hsl(32, 95%, 55%)' : isAttribute ? 'hsl(32, 80%, 70%)' : 'hsl(32, 85%, 60%)',
-            color: isClass ? 'hsl(32, 100%, 15%)' : 'hsl(32, 90%, 20%)',
-            border: isClass ? '3px solid hsl(32, 90%, 45%)' : '2px solid hsl(32, 75%, 55%)',
+            background: isClass ? 'hsl(32, 95%, 55%)' : isAttribute ? 'hsl(200, 85%, 65%)' : 'hsl(32, 85%, 60%)',
+            color: isClass ? 'hsl(32, 100%, 15%)' : 'hsl(200, 90%, 20%)',
+            border: isClass ? '3px solid hsl(32, 90%, 45%)' : '2px solid hsl(200, 75%, 50%)',
             borderRadius: '50%',
             width: baseSize,
             height: baseSize,
@@ -301,7 +310,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
             fontWeight: isClass ? '600' : '500',
             textAlign: 'center' as const,
             wordBreak: 'break-word' as const,
-            boxShadow: isClass ? '0 6px 16px hsl(32, 85%, 45% / 0.3)' : '0 3px 8px hsl(32, 75%, 55% / 0.2)',
+            boxShadow: isClass ? '0 6px 16px hsl(32, 85%, 45% / 0.3)' : '0 3px 8px hsl(200, 75%, 50% / 0.2)',
             padding: '8px',
           },
         };
