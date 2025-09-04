@@ -14,7 +14,7 @@ export const Header = ({ onSidebarToggle }: HeaderProps) => {
           variant="ghost"
           size="sm"
           onClick={onSidebarToggle}
-          className="p-1 hover:bg-orange-100"
+          className="p-2 hover:bg-orange-100"
         >
           <img 
             src="/lovable-uploads/org-logo-placeholder.png" 
