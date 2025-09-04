@@ -53,26 +53,11 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
     }
   }, [ttlData]);
 
-  // Calculate layout with proper positioning
-  const layoutedNodes = useMemo(() => {
+  // Calculate layout with ALL nodes first (stable positions)
+  const fullLayoutNodes = useMemo(() => {
     if (graphData.nodes.length === 0) return [];
     
-    // Filter nodes based on showAttributes setting and expandedClasses
-    const filteredNodes = showAttributes 
-      ? graphData.nodes 
-      : graphData.nodes.filter(node => {
-          if (node.data?.type === 'class') return true;
-          if (node.data?.type === 'attribute') {
-            // Show attribute if any connected class is expanded
-            const connectedClasses = graphData.edges
-              .filter(edge => edge.target === node.id)
-              .map(edge => edge.source);
-            return connectedClasses.some(classId => expandedClasses.has(classId));
-          }
-          return false;
-        });
-    
-    const baseNodes = filteredNodes.map((node) => {
+    const baseNodes = graphData.nodes.map((node) => {
       const label = node.data?.label || 'Unknown';
       const labelLength = typeof label === 'string' ? label.length : 8;
       const isClass = node.data?.type === 'class';
@@ -117,28 +102,25 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
       };
     });
 
-    // Filter edges based on showAttributes setting and expandedClasses
-    const filteredEdges = showAttributes 
-      ? graphData.edges 
-      : graphData.edges.filter(edge => {
-          const sourceNode = graphData.nodes.find(n => n.id === edge.source);
-          const targetNode = graphData.nodes.find(n => n.id === edge.target);
-          
-          // Always include class-to-class edges
-          if (sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'class') {
-            return true;
-          }
-          
-          // Include class-to-attribute edges only if the class is expanded
-          if (sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'attribute') {
-            return expandedClasses.has(edge.source);
-          }
-          
-          return false;
-        });
+    // Use ALL edges for stable layout calculation
+    return calculateLayout(baseNodes, graphData.edges, containerSize.width, containerSize.height);
+  }, [graphData.nodes, graphData.edges, containerSize]);
 
-    return calculateLayout(baseNodes, filteredEdges, containerSize.width, containerSize.height);
-  }, [graphData.nodes, graphData.edges, containerSize, showAttributes, expandedClasses]);
+  // Filter the full layout for display based on current settings
+  const layoutedNodes = useMemo(() => {
+    return fullLayoutNodes.filter(node => {
+      if (showAttributes) return true;
+      if (node.data?.type === 'class') return true;
+      if (node.data?.type === 'attribute') {
+        // Show attribute if any connected class is expanded
+        const connectedClasses = graphData.edges
+          .filter(edge => edge.target === node.id)
+          .map(edge => edge.source);
+        return connectedClasses.some(classId => expandedClasses.has(classId));
+      }
+      return false;
+    });
+  }, [fullLayoutNodes, showAttributes, expandedClasses, graphData.edges]);
 
   // Update container size
   useEffect(() => {
@@ -193,8 +175,13 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
     }));
   }, [graphData.edges, showAttributes, graphData.nodes, expandedClasses]);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  // Update displayed nodes based on filtering
+  useEffect(() => {
+    setNodes(layoutedNodes);
+  }, [layoutedNodes, setNodes]);
 
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
     console.log('Node clicked:', node);
@@ -214,91 +201,53 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   }, [showAttributes]);
 
   const relayoutGraph = useCallback(async () => {
-    if (layoutedNodes.length > 0) {
-      const filteredEdges = showAttributes 
-        ? graphData.edges 
-        : graphData.edges.filter(edge => {
-            const sourceNode = graphData.nodes.find(n => n.id === edge.source);
-            const targetNode = graphData.nodes.find(n => n.id === edge.target);
-            
-            // Always include class-to-class edges
-            if (sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'class') {
-              return true;
-            }
-            
-            // Include class-to-attribute edges only if the class is expanded
-            if (sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'attribute') {
-              return expandedClasses.has(edge.source);
-            }
-            
-            return false;
-          });
-      
+    if (fullLayoutNodes.length > 0) {
       if (useHierarchicalLayout) {
         try {
           const hierarchicalNodes = await calculateHierarchicalLayout(
-            layoutedNodes, 
-            filteredEdges, 
+            fullLayoutNodes, 
+            graphData.edges, // Use all edges for stable layout
             containerSize.width, 
             containerSize.height
           );
           setNodes(hierarchicalNodes);
         } catch (error) {
           console.error('Hierarchical layout failed, falling back to force layout:', error);
-          const newLayout = calculateLayout(layoutedNodes, filteredEdges, containerSize.width, containerSize.height);
+          const newLayout = calculateLayout(fullLayoutNodes, graphData.edges, containerSize.width, containerSize.height);
           setNodes(newLayout);
         }
       } else {
-        const newLayout = calculateLayout(layoutedNodes, filteredEdges, containerSize.width, containerSize.height);
+        const newLayout = calculateLayout(fullLayoutNodes, graphData.edges, containerSize.width, containerSize.height);
         setNodes(newLayout);
       }
     }
-  }, [layoutedNodes, graphData.edges, graphData.nodes, containerSize, setNodes, showAttributes, useHierarchicalLayout, expandedClasses]);
+  }, [fullLayoutNodes, graphData.edges, containerSize, setNodes, useHierarchicalLayout]);
 
-  // Update nodes with async layout calculation
+  // Update nodes with async layout calculation (hierarchical only)
   useEffect(() => {
     const updateLayout = async () => {
-      if (layoutedNodes.length === 0) return;
+      if (fullLayoutNodes.length === 0) return;
       
       if (useHierarchicalLayout) {
         try {
-          const filteredEdges = showAttributes 
-            ? graphData.edges 
-            : graphData.edges.filter(edge => {
-                const sourceNode = graphData.nodes.find(n => n.id === edge.source);
-                const targetNode = graphData.nodes.find(n => n.id === edge.target);
-                
-                // Always include class-to-class edges
-                if (sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'class') {
-                  return true;
-                }
-                
-                // Include class-to-attribute edges only if the class is expanded
-                if (sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'attribute') {
-                  return expandedClasses.has(edge.source);
-                }
-                
-                return false;
-              });
-          
           const hierarchicalNodes = await calculateHierarchicalLayout(
-            layoutedNodes, 
-            filteredEdges, 
+            fullLayoutNodes, 
+            graphData.edges, // Use all edges for stable layout
             containerSize.width, 
             containerSize.height
           );
           setNodes(hierarchicalNodes);
         } catch (error) {
           console.error('Hierarchical layout failed, using force layout:', error);
-          setNodes(layoutedNodes);
+          setNodes(fullLayoutNodes);
         }
       } else {
-        setNodes(layoutedNodes);
+        setNodes(fullLayoutNodes);
       }
     };
     
     updateLayout();
-  }, [layoutedNodes, useHierarchicalLayout, showAttributes, graphData.edges, graphData.nodes, containerSize, setNodes, expandedClasses]);
+  }, [fullLayoutNodes, useHierarchicalLayout, graphData.edges, containerSize, setNodes]);
 
   // Update edges when bubbleEdges changes
   useEffect(() => {
