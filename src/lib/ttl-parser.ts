@@ -310,14 +310,16 @@ export function createMedicalPlaceholderGraph(): ParsedTTLData {
 
 // Build ER graph with only classes and their object properties (relationships)
 export function buildClassERGraph(ttlData: string): ParsedTTLData {
-  console.log("Building class ER graph...");
+  console.log("Building ER diagram with orange bubble nodes...");
   const parser = new Parser();
   const quads = parser.parse(ttlData);
   
   console.log("Parsed quads:", quads.length);
   
   const classes = new Map<string, Node>();
+  const attributes = new Map<string, Node>();
   const objectProperties = new Map<string, { name: string; domain?: string; range?: string }>();
+  const dataTypeProperties = new Map<string, { name: string; domain?: string }>();
   const edges: Edge[] = [];
   let nodeCount = 0;
   let edgeCount = 0;
@@ -330,7 +332,7 @@ export function buildClassERGraph(ttlData: string): ParsedTTLData {
     prefixMap.set(match[2], match[1]);
   }
   
-  // Helper function to get short name
+  // Helper function to get short name (ignore labels and comments)
   const getEntityName = (uri: string): string => {
     for (const [fullPrefix, shortPrefix] of prefixMap.entries()) {
       if (uri.startsWith(fullPrefix)) {
@@ -341,7 +343,7 @@ export function buildClassERGraph(ttlData: string): ParsedTTLData {
     return parts[parts.length - 1] || uri;
   };
   
-  // First pass: identify classes
+  // First pass: identify classes (orange bubble nodes)
   quads.forEach((quad) => {
     if (quad.predicate.value === 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' &&
         quad.object.value === 'http://www.w3.org/2002/07/owl#Class') {
@@ -354,23 +356,30 @@ export function buildClassERGraph(ttlData: string): ParsedTTLData {
           id: nodeId,
           data: { label: className, uri: classUri, type: 'class' },
           position: { x: Math.random() * 800, y: Math.random() * 600 },
-          type: 'default',
-          style: {
-            background: 'hsl(var(--primary))',
-            color: 'hsl(var(--primary-foreground))',
-            border: '2px solid hsl(var(--border))',
-            borderRadius: '8px',
-            padding: '12px',
-            minWidth: '120px',
-            textAlign: 'center' as const,
-            fontWeight: '500'
-          }
+          type: 'default'
         });
       }
     }
   });
   
-  // Second pass: identify object properties only (not datatype properties)
+  // Second pass: identify datatype properties (attributes - smaller orange nodes)
+  quads.forEach((quad) => {
+    if (quad.predicate.value === 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' &&
+        quad.object.value === 'http://www.w3.org/2002/07/owl#DatatypeProperty') {
+      const propUri = quad.subject.value;
+      const propName = getEntityName(propUri);
+      
+      // Only create essential attributes (skip common prefixes like rdfs, owl)
+      if (!propName.startsWith('rdfs:') && !propName.startsWith('owl:') && 
+          !propName.includes('label') && !propName.includes('comment')) {
+        dataTypeProperties.set(propUri, {
+          name: propName
+        });
+      }
+    }
+  });
+  
+  // Third pass: identify object properties for relationships
   quads.forEach((quad) => {
     if (quad.predicate.value === 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' &&
         quad.object.value === 'http://www.w3.org/2002/07/owl#ObjectProperty') {
@@ -383,11 +392,27 @@ export function buildClassERGraph(ttlData: string): ParsedTTLData {
     }
   });
   
-  // Third pass: get domains and ranges for object properties
+  // Fourth pass: get domains for datatype properties and create attribute nodes
   quads.forEach((quad) => {
     const predicate = quad.predicate.value;
     const subject = quad.subject.value;
     
+    if (dataTypeProperties.has(subject) && 
+        predicate === 'http://www.w3.org/2000/01/rdf-schema#domain') {
+      const property = dataTypeProperties.get(subject)!;
+      property.domain = quad.object.value;
+      
+      // Create attribute node
+      const attrId = `attr-${nodeCount++}`;
+      attributes.set(subject, {
+        id: attrId,
+        data: { label: property.name, uri: subject, type: 'attribute' },
+        position: { x: Math.random() * 800, y: Math.random() * 600 },
+        type: 'default'
+      });
+    }
+    
+    // Get domains and ranges for object properties
     if (objectProperties.has(subject)) {
       const property = objectProperties.get(subject)!;
       
@@ -399,7 +424,29 @@ export function buildClassERGraph(ttlData: string): ParsedTTLData {
     }
   });
   
-  // Fourth pass: create edges for relationships between classes
+  // Fifth pass: create edges for class-attribute relationships
+  dataTypeProperties.forEach((property, propUri) => {
+    if (property.domain) {
+      const classNode = classes.get(property.domain);
+      const attrNode = attributes.get(propUri);
+      
+      if (classNode && attrNode) {
+        edges.push({
+          id: `edge-${edgeCount++}`,
+          source: classNode.id,
+          target: attrNode.id,
+          type: 'default',
+          style: { 
+            stroke: 'hsl(32, 75%, 60%)', 
+            strokeWidth: 1,
+            strokeDasharray: '5,5'
+          }
+        });
+      }
+    }
+  });
+  
+  // Sixth pass: create edges for class-class relationships
   objectProperties.forEach((property) => {
     if (property.domain && property.range) {
       const sourceNode = classes.get(property.domain);
@@ -413,12 +460,13 @@ export function buildClassERGraph(ttlData: string): ParsedTTLData {
           label: property.name,
           type: 'default',
           style: { 
-            stroke: 'hsl(var(--muted-foreground))', 
+            stroke: 'hsl(32, 85%, 45%)', 
             strokeWidth: 2 
           },
           labelStyle: { 
-            fill: 'hsl(var(--foreground))', 
-            fontSize: '12px' 
+            fill: 'hsl(32, 85%, 25%)', 
+            fontSize: '12px',
+            fontWeight: '500'
           }
         });
       }
@@ -426,10 +474,13 @@ export function buildClassERGraph(ttlData: string): ParsedTTLData {
   });
   
   console.log("Created class nodes:", classes.size);
+  console.log("Created attribute nodes:", attributes.size);
   console.log("Created relationship edges:", edges.length);
   
+  const allNodes = [...Array.from(classes.values()), ...Array.from(attributes.values())];
+  
   return {
-    nodes: Array.from(classes.values()),
+    nodes: allNodes,
     edges
   };
 }

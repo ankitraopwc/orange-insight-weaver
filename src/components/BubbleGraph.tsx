@@ -48,6 +48,11 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
     const baseNodes = graphData.nodes.map((node) => {
       const label = node.data?.label || 'Unknown';
       const labelLength = typeof label === 'string' ? label.length : 8;
+      const isClass = node.data?.type === 'class';
+      const isAttribute = node.data?.type === 'attribute';
+      
+      // Calculate size based on node type
+      const baseSize = isClass ? Math.max(80, Math.min(120, labelLength * 8)) : Math.max(50, Math.min(70, labelLength * 6));
       
       return {
         ...node,
@@ -56,21 +61,31 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
           label,
         },
         style: {
-          background: 'hsl(var(--primary))',
-          color: 'hsl(var(--primary-foreground))',
-          border: '2px solid hsl(var(--border))',
+          background: isClass 
+            ? 'hsl(32, 95%, 55%)' // Bright orange for classes
+            : isAttribute 
+            ? 'hsl(32, 80%, 70%)' // Lighter orange for attributes
+            : 'hsl(32, 85%, 60%)', // Default orange
+          color: isClass 
+            ? 'hsl(32, 100%, 15%)' // Dark orange text for classes
+            : 'hsl(32, 90%, 20%)', // Slightly lighter dark text for attributes
+          border: isClass 
+            ? '3px solid hsl(32, 90%, 45%)' // Darker orange border for classes
+            : '2px solid hsl(32, 75%, 55%)', // Medium orange border for attributes
           borderRadius: '50%',
-          width: Math.max(60, Math.min(90, labelLength * 7)),
-          height: Math.max(60, Math.min(90, labelLength * 7)),
+          width: baseSize,
+          height: baseSize,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '14px',
-          fontWeight: '500',
+          fontSize: isClass ? '14px' : '12px',
+          fontWeight: isClass ? '600' : '500',
           textAlign: 'center' as const,
           wordBreak: 'break-word' as const,
-          boxShadow: '0 4px 12px hsl(var(--primary) / 0.2)',
-          padding: '6px',
+          boxShadow: isClass 
+            ? '0 6px 16px hsl(32, 85%, 45% / 0.3)' // Stronger shadow for classes
+            : '0 3px 8px hsl(32, 75%, 55% / 0.2)', // Subtle shadow for attributes
+          padding: '8px',
         },
       };
     });
