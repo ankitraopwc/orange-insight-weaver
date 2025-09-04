@@ -40,6 +40,8 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
     return saved ? JSON.parse(saved) : true;
   });
   
+  const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set());
+  
   const graphData = useMemo(() => {
     if (!ttlData) return { nodes: [], edges: [] };
     
@@ -55,10 +57,20 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   const layoutedNodes = useMemo(() => {
     if (graphData.nodes.length === 0) return [];
     
-    // Filter nodes based on showAttributes setting
+    // Filter nodes based on showAttributes setting and expandedClasses
     const filteredNodes = showAttributes 
       ? graphData.nodes 
-      : graphData.nodes.filter(node => node.data?.type === 'class');
+      : graphData.nodes.filter(node => {
+          if (node.data?.type === 'class') return true;
+          if (node.data?.type === 'attribute') {
+            // Show attribute if any connected class is expanded
+            const connectedClasses = graphData.edges
+              .filter(edge => edge.target === node.id)
+              .map(edge => edge.source);
+            return connectedClasses.some(classId => expandedClasses.has(classId));
+          }
+          return false;
+        });
     
     const baseNodes = filteredNodes.map((node) => {
       const label = node.data?.label || 'Unknown';
@@ -105,17 +117,28 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
       };
     });
 
-    // Filter edges based on showAttributes setting
+    // Filter edges based on showAttributes setting and expandedClasses
     const filteredEdges = showAttributes 
       ? graphData.edges 
       : graphData.edges.filter(edge => {
           const sourceNode = graphData.nodes.find(n => n.id === edge.source);
           const targetNode = graphData.nodes.find(n => n.id === edge.target);
-          return sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'class';
+          
+          // Always include class-to-class edges
+          if (sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'class') {
+            return true;
+          }
+          
+          // Include class-to-attribute edges only if the class is expanded
+          if (sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'attribute') {
+            return expandedClasses.has(edge.source);
+          }
+          
+          return false;
         });
 
     return calculateLayout(baseNodes, filteredEdges, containerSize.width, containerSize.height);
-  }, [graphData.nodes, graphData.edges, containerSize, showAttributes]);
+  }, [graphData.nodes, graphData.edges, containerSize, showAttributes, expandedClasses]);
 
   // Update container size
   useEffect(() => {
@@ -132,18 +155,29 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   }, []);
 
   const bubbleEdges: Edge[] = useMemo(() => {
-    // Filter edges based on showAttributes setting
+    // Filter edges based on showAttributes setting and expandedClasses
     const filteredEdges = showAttributes 
       ? graphData.edges 
       : graphData.edges.filter(edge => {
           const sourceNode = graphData.nodes.find(n => n.id === edge.source);
           const targetNode = graphData.nodes.find(n => n.id === edge.target);
-          return sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'class';
+          
+          // Always include class-to-class edges
+          if (sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'class') {
+            return true;
+          }
+          
+          // Include class-to-attribute edges only if the class is expanded
+          if (sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'attribute') {
+            return expandedClasses.has(edge.source);
+          }
+          
+          return false;
         });
 
     return filteredEdges.map((edge) => ({
       ...edge,
-      type: 'smoothstep',
+      type: 'default', // Changed from 'smoothstep' to default Bezier
       style: {
         stroke: 'hsl(var(--muted-foreground))',
         strokeWidth: 2,
@@ -157,15 +191,27 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
         fontSize: '15px',
       },
     }));
-  }, [graphData.edges, showAttributes, graphData.nodes]);
+  }, [graphData.edges, showAttributes, graphData.nodes, expandedClasses]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
     console.log('Node clicked:', node);
-    // Future: implement focus/zoom functionality
-  }, []);
+    
+    // Toggle attribute visibility for individual classes when global attributes are hidden
+    if (!showAttributes && node.data?.type === 'class') {
+      setExpandedClasses(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(node.id)) {
+          newSet.delete(node.id);
+        } else {
+          newSet.add(node.id);
+        }
+        return newSet;
+      });
+    }
+  }, [showAttributes]);
 
   const relayoutGraph = useCallback(async () => {
     if (layoutedNodes.length > 0) {
@@ -174,7 +220,18 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
         : graphData.edges.filter(edge => {
             const sourceNode = graphData.nodes.find(n => n.id === edge.source);
             const targetNode = graphData.nodes.find(n => n.id === edge.target);
-            return sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'class';
+            
+            // Always include class-to-class edges
+            if (sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'class') {
+              return true;
+            }
+            
+            // Include class-to-attribute edges only if the class is expanded
+            if (sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'attribute') {
+              return expandedClasses.has(edge.source);
+            }
+            
+            return false;
           });
       
       if (useHierarchicalLayout) {
@@ -196,7 +253,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
         setNodes(newLayout);
       }
     }
-  }, [layoutedNodes, graphData.edges, graphData.nodes, containerSize, setNodes, showAttributes, useHierarchicalLayout]);
+  }, [layoutedNodes, graphData.edges, graphData.nodes, containerSize, setNodes, showAttributes, useHierarchicalLayout, expandedClasses]);
 
   // Update nodes with async layout calculation
   useEffect(() => {
@@ -210,7 +267,18 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
             : graphData.edges.filter(edge => {
                 const sourceNode = graphData.nodes.find(n => n.id === edge.source);
                 const targetNode = graphData.nodes.find(n => n.id === edge.target);
-                return sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'class';
+                
+                // Always include class-to-class edges
+                if (sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'class') {
+                  return true;
+                }
+                
+                // Include class-to-attribute edges only if the class is expanded
+                if (sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'attribute') {
+                  return expandedClasses.has(edge.source);
+                }
+                
+                return false;
               });
           
           const hierarchicalNodes = await calculateHierarchicalLayout(
@@ -230,7 +298,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
     };
     
     updateLayout();
-  }, [layoutedNodes, useHierarchicalLayout, showAttributes, graphData.edges, graphData.nodes, containerSize, setNodes]);
+  }, [layoutedNodes, useHierarchicalLayout, showAttributes, graphData.edges, graphData.nodes, containerSize, setNodes, expandedClasses]);
 
   // Update edges when bubbleEdges changes
   useEffect(() => {
@@ -253,6 +321,10 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
             const newValue = !showAttributes;
             setShowAttributes(newValue);
             localStorage.setItem('bubble-graph-attributes', JSON.stringify(newValue));
+            // Clear expanded classes when toggling attributes ON
+            if (newValue) {
+              setExpandedClasses(new Set());
+            }
           }}
           size="sm"
           variant="outline"
