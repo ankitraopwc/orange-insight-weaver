@@ -80,27 +80,15 @@ export const OntologyWorkspace: React.FC<OntologyWorkspaceProps> = ({ ttlData })
               <h3 className="font-semibold text-foreground">
                 Interactive Graph View
               </h3>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsFullscreenOpen(true)}
-                  className="h-8 w-8 p-0"
-                  title="Fullscreen view"
-                >
-                  <Maximize2 className="h-4 w-4" />
-                </Button>
-                {!isHumanReadablePanelOpen && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsHumanReadablePanelOpen(true)}
-                    className="h-8 w-8 p-0"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsFullscreenOpen(true)}
+                className="h-8 w-8 p-0"
+                title="Fullscreen view"
+              >
+                <Maximize2 className="h-4 w-4" />
+              </Button>
             </div>
           </div>
           <div className="flex-1">
