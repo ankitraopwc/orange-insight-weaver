@@ -126,7 +126,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   }, [graphData.edges]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
-  const [edges, , onEdgesChange] = useEdgesState(bubbleEdges);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
     console.log('Node clicked:', node);
@@ -144,6 +144,11 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   useEffect(() => {
     setNodes(layoutedNodes);
   }, [layoutedNodes, setNodes]);
+
+  // Update edges when bubbleEdges changes
+  useEffect(() => {
+    setEdges(bubbleEdges);
+  }, [bubbleEdges, setEdges]);
 
   if (!ttlData) {
     return (
