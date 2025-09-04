@@ -121,7 +121,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
 
   // Filter the full layout for display based on current settings
   const layoutedNodes = useMemo(() => {
-    return fullLayoutNodes.filter(node => {
+    const filteredNodes = fullLayoutNodes.filter(node => {
       if (showAttributes) return true;
       if (node.data?.type === 'class') return true;
       if (node.data?.type === 'attribute') {
@@ -133,7 +133,43 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
       }
       return false;
     });
-  }, [fullLayoutNodes, showAttributes, expandedClasses, graphData.edges]);
+
+    // Position attributes in circles around expanded classes
+    return filteredNodes.map(node => {
+      if (node.data?.type === 'attribute' && !showAttributes) {
+        // Find the connected class that is expanded
+        const connectedClass = graphData.edges
+          .filter(edge => edge.target === node.id)
+          .find(edge => expandedClasses.has(edge.source));
+          
+        if (connectedClass) {
+          const classNode = fullLayoutNodes.find(n => n.id === connectedClass.source);
+          if (classNode) {
+            // Get all attributes for this class
+            const classAttributes = graphData.edges
+              .filter(edge => edge.source === connectedClass.source && 
+                graphData.nodes.find(n => n.id === edge.target)?.data?.type === 'attribute')
+              .map(edge => edge.target);
+            
+            const attributeIndex = classAttributes.indexOf(node.id);
+            const totalAttributes = classAttributes.length;
+            
+            // Calculate circular position around class
+            const radius = 120; // Distance from class center
+            const angle = (attributeIndex / totalAttributes) * 2 * Math.PI;
+            const x = classNode.position.x + Math.cos(angle) * radius;
+            const y = classNode.position.y + Math.sin(angle) * radius;
+            
+            return {
+              ...node,
+              position: { x, y }
+            };
+          }
+        }
+      }
+      return node;
+    });
+  }, [fullLayoutNodes, showAttributes, expandedClasses, graphData.edges, graphData.nodes]);
 
   // Update container size
   useEffect(() => {
@@ -217,8 +253,8 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
     setNodes(layoutedNodes);
   }, [layoutedNodes, setNodes]);
 
-  const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-    console.log('Node clicked:', node);
+  const onNodeDoubleClick = useCallback((event: React.MouseEvent, node: Node) => {
+    console.log('Node double-clicked:', node);
     
     // Toggle attribute visibility for individual classes when global attributes are hidden
     if (!showAttributes && node.data?.type === 'class') {
@@ -392,7 +428,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
         edges={edges}
         onNodesChange={handleNodesChange}
         onEdgesChange={onEdgesChange}
-        onNodeClick={onNodeClick}
+        onNodeDoubleClick={onNodeDoubleClick}
         nodeTypes={nodeTypes}
         connectionMode={ConnectionMode.Loose}
         fitView
