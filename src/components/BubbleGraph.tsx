@@ -41,7 +41,9 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   });
   
   const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set());
+  const [collapsedClasses, setCollapsedClasses] = useState<Set<string>>(new Set());
   const [savedNodePositions, setSavedNodePositions] = useState<Map<string, { x: number; y: number }>>(new Map<string, { x: number; y: number }>());
+  const [manuallyMovedNodes, setManuallyMovedNodes] = useState<Set<string>>(new Set());
   
   const graphData = useMemo(() => {
     if (!ttlData) return { nodes: [], edges: [] };
@@ -124,25 +126,29 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   }, []);
 
   const bubbleEdges: Edge[] = useMemo(() => {
-    // Filter edges based on showAttributes setting and expandedClasses
-    const filteredEdges = showAttributes 
-      ? graphData.edges 
-      : graphData.edges.filter(edge => {
-          const sourceNode = graphData.nodes.find(n => n.id === edge.source);
-          const targetNode = graphData.nodes.find(n => n.id === edge.target);
-          
-          // Always include class-to-class edges
-          if (sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'class') {
-            return true;
-          }
-          
-          // Include class-to-attribute edges only if the class is expanded
-          if (sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'attribute') {
-            return expandedClasses.has(edge.source);
-          }
-          
-          return false;
-        });
+    // Filter edges with refined visibility logic
+    const filteredEdges = graphData.edges.filter(edge => {
+      const sourceNode = graphData.nodes.find(n => n.id === edge.source);
+      const targetNode = graphData.nodes.find(n => n.id === edge.target);
+      
+      // Always include class-to-class edges
+      if (sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'class') {
+        return true;
+      }
+      
+      // Handle class-to-attribute edges
+      if (sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'attribute') {
+        if (showAttributes) {
+          // When attributes are globally ON, show unless class is in collapsedClasses
+          return !collapsedClasses.has(edge.source);
+        } else {
+          // When attributes are globally OFF, show only if class is in expandedClasses
+          return expandedClasses.has(edge.source);
+        }
+      }
+      
+      return false;
+    });
 
     return filteredEdges.map((edge) => ({
       ...edge,
@@ -160,12 +166,12 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
         fontSize: '15px',
       },
     }));
-  }, [graphData.edges, showAttributes, graphData.nodes, expandedClasses]);
+  }, [graphData.edges, showAttributes, graphData.nodes, expandedClasses, collapsedClasses]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-  // Initialize nodes state with all nodes and their visibility
+  // Initialize nodes state with all nodes and their visibility (don't depend on savedNodePositions to avoid re-creation)
   useEffect(() => {
     if (initialNodes.length > 0) {
       // Apply saved positions to initial nodes
@@ -176,9 +182,9 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
       
       setNodes(nodesWithSavedPositions);
     }
-  }, [initialNodes, savedNodePositions, setNodes]);
+  }, [initialNodes, setNodes]); // Remove savedNodePositions dependency to prevent re-creation
 
-  // Update node visibility when showAttributes or expandedClasses change
+  // Update node visibility when showAttributes, expandedClasses, or collapsedClasses change
   useEffect(() => {
     setNodes(currentNodes => 
       currentNodes.map(node => {
@@ -191,35 +197,34 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
         }
         
         if (isAttribute) {
+          // Find connected classes
+          const connectedClasses = graphData.edges
+            .filter(edge => edge.target === node.id)
+            .map(edge => edge.source);
+          
+          let shouldShow = false;
+          let targetPosition = null;
+          
           if (showAttributes) {
-            // All attributes visible when global toggle is on
-            return { ...node, hidden: false };
-          } else {
-            // Check if any connected class is expanded
-            const connectedClasses = graphData.edges
-              .filter(edge => edge.target === node.id)
-              .map(edge => edge.source);
-            const shouldShow = connectedClasses.some(classId => expandedClasses.has(classId));
+            // When globally ON, show unless ALL connected classes are collapsed
+            shouldShow = connectedClasses.some(classId => !collapsedClasses.has(classId));
             
-            // Position attributes in circle around expanded class if visible
-            if (shouldShow) {
-              const connectedClass = graphData.edges
-                .filter(edge => edge.target === node.id)
-                .find(edge => expandedClasses.has(edge.source));
+            // Find first non-collapsed class for positioning
+            const activeClass = connectedClasses.find(classId => !collapsedClasses.has(classId));
+            if (activeClass && shouldShow) {
+              const classNode = currentNodes.find(n => n.id === activeClass);
+              if (classNode && !manuallyMovedNodes.has(node.id)) {
+                // Calculate position only if not manually moved
+                const classAttributes = graphData.edges
+                  .filter(edge => edge.source === activeClass && 
+                    graphData.nodes.find(n => n.id === edge.target)?.data?.type === 'attribute' &&
+                    !collapsedClasses.has(activeClass))
+                  .map(edge => edge.target);
                 
-              if (connectedClass) {
-                const classNode = currentNodes.find(n => n.id === connectedClass.source);
-                if (classNode) {
-                  // Get all attributes for this class
-                  const classAttributes = graphData.edges
-                    .filter(edge => edge.source === connectedClass.source && 
-                      graphData.nodes.find(n => n.id === edge.target)?.data?.type === 'attribute')
-                    .map(edge => edge.target);
-                  
-                  const attributeIndex = classAttributes.indexOf(node.id);
-                  const totalAttributes = classAttributes.length;
-                  
-                  // Calculate circular position around class with collision avoidance
+                const attributeIndex = classAttributes.indexOf(node.id);
+                const totalAttributes = classAttributes.length;
+                
+                if (attributeIndex >= 0) {
                   const baseRadius = 140;
                   const labelLength = typeof node.data?.label === 'string' ? node.data.label.length : 8;
                   const nodeSize = Math.max(50, Math.min(70, labelLength * 6));
@@ -232,105 +237,173 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
                   const x = classNode.position.x + Math.cos(angle) * calculatedRadius;
                   const y = classNode.position.y + Math.sin(angle) * calculatedRadius;
                   
-                  return {
-                    ...node,
-                    hidden: false,
-                    position: { x, y }
-                  };
+                  targetPosition = { x, y };
                 }
               }
             }
+          } else {
+            // When globally OFF, show only if ANY connected class is expanded
+            shouldShow = connectedClasses.some(classId => expandedClasses.has(classId));
             
-            return { ...node, hidden: !shouldShow };
+            // Find first expanded class for positioning
+            const activeClass = connectedClasses.find(classId => expandedClasses.has(classId));
+            if (activeClass && shouldShow) {
+              const classNode = currentNodes.find(n => n.id === activeClass);
+              if (classNode && !manuallyMovedNodes.has(node.id)) {
+                // Calculate position only if not manually moved
+                const classAttributes = graphData.edges
+                  .filter(edge => edge.source === activeClass && 
+                    graphData.nodes.find(n => n.id === edge.target)?.data?.type === 'attribute')
+                  .map(edge => edge.target);
+                
+                const attributeIndex = classAttributes.indexOf(node.id);
+                const totalAttributes = classAttributes.length;
+                
+                if (attributeIndex >= 0) {
+                  const baseRadius = 140;
+                  const labelLength = typeof node.data?.label === 'string' ? node.data.label.length : 8;
+                  const nodeSize = Math.max(50, Math.min(70, labelLength * 6));
+                  const minDistance = nodeSize + 20;
+                  
+                  const circumference = totalAttributes * minDistance;
+                  const calculatedRadius = Math.max(baseRadius, circumference / (2 * Math.PI));
+                  
+                  const angle = (attributeIndex / totalAttributes) * 2 * Math.PI;
+                  const x = classNode.position.x + Math.cos(angle) * calculatedRadius;
+                  const y = classNode.position.y + Math.sin(angle) * calculatedRadius;
+                  
+                  targetPosition = { x, y };
+                }
+              }
+            }
           }
+          
+          return {
+            ...node,
+            hidden: !shouldShow,
+            ...(targetPosition && { position: targetPosition })
+          };
         }
         
         return node;
       })
     );
-  }, [showAttributes, expandedClasses, graphData.edges, graphData.nodes, setNodes]);
+  }, [showAttributes, expandedClasses, collapsedClasses, graphData.edges, graphData.nodes, setNodes, manuallyMovedNodes]);
 
-  // Targeted drag handler that only updates dragged node and repositions its attributes
+  // Targeted drag handler that tracks manual moves and repositions attributes
   const handleNodesChange = useCallback((changes: any[]) => {
     onNodesChange(changes);
     
     changes.forEach(change => {
-      if (change.type === 'position' && change.position && change.dragging === false) {
-        // Save position
-        setSavedNodePositions(prev => {
-          const newMap = new Map(prev);
-          newMap.set(change.id, { x: change.position.x, y: change.position.y });
-          return newMap;
-        });
-        
-        // If a class was dragged and has expanded attributes, reposition them
-        const draggedNode = nodes.find(n => n.id === change.id);
-        if (draggedNode?.data?.type === 'class' && expandedClasses.has(change.id)) {
-          setNodes(currentNodes => {
-            // Find attributes connected to this class
-            const classAttributes = graphData.edges
-              .filter(edge => edge.source === change.id && 
-                graphData.nodes.find(n => n.id === edge.target)?.data?.type === 'attribute')
-              .map(edge => edge.target);
-            
-            return currentNodes.map(node => {
-              if (classAttributes.includes(node.id) && !node.hidden) {
-                // Recalculate circular position
-                const attributeIndex = classAttributes.indexOf(node.id);
-                const totalAttributes = classAttributes.length;
-                
-                const baseRadius = 140;
-                const labelLength = typeof node.data?.label === 'string' ? node.data.label.length : 8;
-                const nodeSize = Math.max(50, Math.min(70, labelLength * 6));
-                const minDistance = nodeSize + 20;
-                
-                const circumference = totalAttributes * minDistance;
-                const calculatedRadius = Math.max(baseRadius, circumference / (2 * Math.PI));
-                
-                const angle = (attributeIndex / totalAttributes) * 2 * Math.PI;
-                const x = change.position.x + Math.cos(angle) * calculatedRadius;
-                const y = change.position.y + Math.sin(angle) * calculatedRadius;
-                
-                return {
-                  ...node,
-                  position: { x, y }
-                };
-              }
-              return node;
-            });
+      if (change.type === 'position' && change.position) {
+        if (change.dragging) {
+          // Mark as manually moved when dragging starts/continues
+          const draggedNode = nodes.find(n => n.id === change.id);
+          if (draggedNode?.data?.type === 'attribute') {
+            setManuallyMovedNodes(prev => new Set(prev).add(change.id));
+          }
+        } else {
+          // Save position when dragging ends
+          setSavedNodePositions(prev => {
+            const newMap = new Map(prev);
+            newMap.set(change.id, { x: change.position.x, y: change.position.y });
+            return newMap;
           });
+          
+          // If a class was dragged and has visible attributes, reposition only non-manually-moved ones
+          const draggedNode = nodes.find(n => n.id === change.id);
+          if (draggedNode?.data?.type === 'class') {
+            const hasVisibleAttributes = showAttributes 
+              ? !collapsedClasses.has(change.id)
+              : expandedClasses.has(change.id);
+              
+            if (hasVisibleAttributes) {
+              setNodes(currentNodes => {
+                // Find attributes connected to this class
+                const classAttributes = graphData.edges
+                  .filter(edge => edge.source === change.id && 
+                    graphData.nodes.find(n => n.id === edge.target)?.data?.type === 'attribute')
+                  .map(edge => edge.target);
+                
+                return currentNodes.map(node => {
+                  if (classAttributes.includes(node.id) && !node.hidden && !manuallyMovedNodes.has(node.id)) {
+                    // Only reposition if not manually moved
+                    const attributeIndex = classAttributes.indexOf(node.id);
+                    const totalAttributes = classAttributes.length;
+                    
+                    const baseRadius = 140;
+                    const labelLength = typeof node.data?.label === 'string' ? node.data.label.length : 8;
+                    const nodeSize = Math.max(50, Math.min(70, labelLength * 6));
+                    const minDistance = nodeSize + 20;
+                    
+                    const circumference = totalAttributes * minDistance;
+                    const calculatedRadius = Math.max(baseRadius, circumference / (2 * Math.PI));
+                    
+                    const angle = (attributeIndex / totalAttributes) * 2 * Math.PI;
+                    const x = change.position.x + Math.cos(angle) * calculatedRadius;
+                    const y = change.position.y + Math.sin(angle) * calculatedRadius;
+                    
+                    return {
+                      ...node,
+                      position: { x, y }
+                    };
+                  }
+                  return node;
+                });
+              });
+            }
+          }
         }
       }
     });
-  }, [onNodesChange, nodes, expandedClasses, graphData.edges, graphData.nodes, setNodes]);
+  }, [onNodesChange, nodes, expandedClasses, collapsedClasses, showAttributes, graphData.edges, graphData.nodes, setNodes, manuallyMovedNodes]);
 
-  // Clear saved positions and expanded classes when data changes
+  // Clear all tracking state when data changes
   useEffect(() => {
     setSavedNodePositions(new Map<string, { x: number; y: number }>());
-    setExpandedClasses(new Set()); // Reset expanded classes for new graph
+    setExpandedClasses(new Set());
+    setCollapsedClasses(new Set());
+    setManuallyMovedNodes(new Set());
   }, [ttlData]);
 
+  // Universal double-click handler that works in both modes
   const onNodeDoubleClick = useCallback((event: React.MouseEvent, node: Node) => {
     console.log('Node double-clicked:', node);
     
-    // Toggle attribute visibility for individual classes when global attributes are hidden
-    if (!showAttributes && node.data?.type === 'class') {
-      setExpandedClasses(prev => {
-        const newSet = new Set(prev);
-        if (newSet.has(node.id)) {
-          newSet.delete(node.id);
-        } else {
-          newSet.add(node.id);
-        }
-        return newSet;
-      });
+    if (node.data?.type === 'class') {
+      if (showAttributes) {
+        // When attributes are globally ON, toggle individual class collapse
+        setCollapsedClasses(prev => {
+          const newSet = new Set(prev);
+          if (newSet.has(node.id)) {
+            newSet.delete(node.id);
+          } else {
+            newSet.add(node.id);
+          }
+          return newSet;
+        });
+      } else {
+        // When attributes are globally OFF, toggle individual class expansion
+        setExpandedClasses(prev => {
+          const newSet = new Set(prev);
+          if (newSet.has(node.id)) {
+            newSet.delete(node.id);
+          } else {
+            newSet.add(node.id);
+          }
+          return newSet;
+        });
+      }
     }
   }, [showAttributes]);
 
   const relayoutGraph = useCallback(async () => {
     if (initialNodes.length > 0) {
-      // Clear saved positions to force recalculation
+      // Clear all tracking state to force fresh calculation
       setSavedNodePositions(new Map<string, { x: number; y: number }>());
+      setExpandedClasses(new Set());
+      setCollapsedClasses(new Set());
+      setManuallyMovedNodes(new Set());
       
       // Recalculate fresh layout
       const baseNodes = graphData.nodes.map((node) => {
@@ -407,9 +480,13 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
             const newValue = !showAttributes;
             setShowAttributes(newValue);
             localStorage.setItem('bubble-graph-attributes', JSON.stringify(newValue));
-            // Clear expanded classes when toggling attributes ON
+            // Clean up state when toggling
             if (newValue) {
+              // Clear expanded classes when turning attributes ON globally
               setExpandedClasses(new Set());
+            } else {
+              // Clear collapsed classes when turning attributes OFF globally
+              setCollapsedClasses(new Set());
             }
           }}
           size="sm"
