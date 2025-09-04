@@ -8,11 +8,13 @@ import {
   Background, 
   Controls, 
   MiniMap,
-  ConnectionMode 
+  ConnectionMode,
+  MarkerType
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { buildClassERGraph } from '@/lib/ttl-parser';
 import { calculateLayout } from '@/lib/graph-layout';
+import { calculateHierarchicalLayout } from '@/lib/elk-layout';
 import { Button } from '@/components/ui/button';
 import { RotateCcw, Map, EyeOff, Eye } from 'lucide-react';
 
@@ -31,6 +33,10 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   });
   const [showAttributes, setShowAttributes] = useState(() => {
     const saved = localStorage.getItem('bubble-graph-attributes');
+    return saved ? JSON.parse(saved) : true;
+  });
+  const [useHierarchicalLayout, setUseHierarchicalLayout] = useState(() => {
+    const saved = localStorage.getItem('bubble-graph-hierarchical');
     return saved ? JSON.parse(saved) : true;
   });
   
@@ -137,6 +143,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
 
     return filteredEdges.map((edge) => ({
       ...edge,
+      type: 'smoothstep',
       style: {
         stroke: 'hsl(var(--muted-foreground))',
         strokeWidth: 2,
@@ -160,7 +167,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
     // Future: implement focus/zoom functionality
   }, []);
 
-  const relayoutGraph = useCallback(() => {
+  const relayoutGraph = useCallback(async () => {
     if (layoutedNodes.length > 0) {
       const filteredEdges = showAttributes 
         ? graphData.edges 
@@ -169,15 +176,61 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
             const targetNode = graphData.nodes.find(n => n.id === edge.target);
             return sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'class';
           });
-      const newLayout = calculateLayout(layoutedNodes, filteredEdges, containerSize.width, containerSize.height);
-      setNodes(newLayout);
+      
+      if (useHierarchicalLayout) {
+        try {
+          const hierarchicalNodes = await calculateHierarchicalLayout(
+            layoutedNodes, 
+            filteredEdges, 
+            containerSize.width, 
+            containerSize.height
+          );
+          setNodes(hierarchicalNodes);
+        } catch (error) {
+          console.error('Hierarchical layout failed, falling back to force layout:', error);
+          const newLayout = calculateLayout(layoutedNodes, filteredEdges, containerSize.width, containerSize.height);
+          setNodes(newLayout);
+        }
+      } else {
+        const newLayout = calculateLayout(layoutedNodes, filteredEdges, containerSize.width, containerSize.height);
+        setNodes(newLayout);
+      }
     }
-  }, [layoutedNodes, graphData.edges, graphData.nodes, containerSize, setNodes, showAttributes]);
+  }, [layoutedNodes, graphData.edges, graphData.nodes, containerSize, setNodes, showAttributes, useHierarchicalLayout]);
 
-  // Update nodes when layout changes
+  // Update nodes with async layout calculation
   useEffect(() => {
-    setNodes(layoutedNodes);
-  }, [layoutedNodes, setNodes]);
+    const updateLayout = async () => {
+      if (layoutedNodes.length === 0) return;
+      
+      if (useHierarchicalLayout) {
+        try {
+          const filteredEdges = showAttributes 
+            ? graphData.edges 
+            : graphData.edges.filter(edge => {
+                const sourceNode = graphData.nodes.find(n => n.id === edge.source);
+                const targetNode = graphData.nodes.find(n => n.id === edge.target);
+                return sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'class';
+              });
+          
+          const hierarchicalNodes = await calculateHierarchicalLayout(
+            layoutedNodes, 
+            filteredEdges, 
+            containerSize.width, 
+            containerSize.height
+          );
+          setNodes(hierarchicalNodes);
+        } catch (error) {
+          console.error('Hierarchical layout failed, using force layout:', error);
+          setNodes(layoutedNodes);
+        }
+      } else {
+        setNodes(layoutedNodes);
+      }
+    };
+    
+    updateLayout();
+  }, [layoutedNodes, useHierarchicalLayout, showAttributes, graphData.edges, graphData.nodes, containerSize, setNodes]);
 
   // Update edges when bubbleEdges changes
   useEffect(() => {
@@ -207,6 +260,18 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
         >
           {showAttributes ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           <span className="ml-2">Attributes</span>
+        </Button>
+        <Button
+          onClick={() => {
+            const newValue = !useHierarchicalLayout;
+            setUseHierarchicalLayout(newValue);
+            localStorage.setItem('bubble-graph-hierarchical', JSON.stringify(newValue));
+          }}
+          size="sm"
+          variant="outline"
+          className="bg-background/80 backdrop-blur-sm"
+        >
+          <span>{useHierarchicalLayout ? 'Force' : 'Hierarchical'}</span>
         </Button>
         <Button
           onClick={() => {
