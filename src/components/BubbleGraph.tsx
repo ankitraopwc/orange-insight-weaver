@@ -35,10 +35,6 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
     const saved = localStorage.getItem('bubble-graph-attributes');
     return saved ? JSON.parse(saved) : false; // Default to hidden
   });
-  const [useHierarchicalLayout, setUseHierarchicalLayout] = useState(() => {
-    const saved = localStorage.getItem('bubble-graph-hierarchical');
-    return saved ? JSON.parse(saved) : true;
-  });
   
   const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set());
   const [collapsedClasses, setCollapsedClasses] = useState<Set<string>>(new Set());
@@ -107,7 +103,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
       };
     });
 
-    // Calculate initial layout
+    // Calculate initial layout using force layout
     return calculateLayout(baseNodes, graphData.edges, containerSize.width, containerSize.height);
   }, [graphData.nodes, graphData.edges, containerSize.width, containerSize.height, ttlData]); // Only recalculate on data change
 
@@ -405,7 +401,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
       setCollapsedClasses(new Set());
       setManuallyMovedNodes(new Set());
       
-      // Recalculate fresh layout
+      // Recalculate fresh layout using force layout
       const baseNodes = graphData.nodes.map((node) => {
         const label = node.data?.label || 'Unknown';
         const labelLength = typeof label === 'string' ? label.length : 8;
@@ -438,26 +434,10 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
         };
       });
       
-      if (useHierarchicalLayout) {
-        try {
-          const hierarchicalNodes = await calculateHierarchicalLayout(
-            baseNodes, 
-            graphData.edges,
-            containerSize.width, 
-            containerSize.height
-          );
-          setNodes(hierarchicalNodes);
-        } catch (error) {
-          console.error('Hierarchical layout failed, falling back to force layout:', error);
-          const newLayout = calculateLayout(baseNodes, graphData.edges, containerSize.width, containerSize.height);
-          setNodes(newLayout);
-        }
-      } else {
-        const newLayout = calculateLayout(baseNodes, graphData.edges, containerSize.width, containerSize.height);
-        setNodes(newLayout);
-      }
+      const newLayout = calculateLayout(baseNodes, graphData.edges, containerSize.width, containerSize.height);
+      setNodes(newLayout);
     }
-  }, [initialNodes, graphData.nodes, graphData.edges, containerSize, setNodes, useHierarchicalLayout, showAttributes]);
+  }, [initialNodes, graphData.nodes, graphData.edges, containerSize, setNodes, showAttributes]);
 
   // Update edges when bubbleEdges changes
   useEffect(() => {
@@ -495,18 +475,6 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
         >
           {showAttributes ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           <span className="ml-2">Attributes</span>
-        </Button>
-        <Button
-          onClick={() => {
-            const newValue = !useHierarchicalLayout;
-            setUseHierarchicalLayout(newValue);
-            localStorage.setItem('bubble-graph-hierarchical', JSON.stringify(newValue));
-          }}
-          size="sm"
-          variant="outline"
-          className="bg-background/80 backdrop-blur-sm"
-        >
-          <span>{useHierarchicalLayout ? 'Force' : 'Hierarchical'}</span>
         </Button>
         <Button
           onClick={() => {

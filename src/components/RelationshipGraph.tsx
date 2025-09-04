@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { parseTTLToEntities } from '@/lib/ttl-parser';
 
 interface RelationshipGraphProps {
@@ -8,6 +9,7 @@ interface RelationshipGraphProps {
 
 export const RelationshipGraph: React.FC<RelationshipGraphProps> = ({ ttlData }) => {
   const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
 
   const toggleClass = (className: string) => {
     const newExpanded = new Set(expandedClasses);
@@ -38,9 +40,41 @@ export const RelationshipGraph: React.FC<RelationshipGraphProps> = ({ ttlData })
       // Sort entities by number of relationships in descending order
       const sortedEntities = [...parsedData.entities].sort((a, b) => b.relationships.length - a.relationships.length);
       
+      // Filter entities based on search query
+      const filteredEntities = sortedEntities.filter(entity => {
+        if (!searchQuery.trim()) return true;
+        
+        const query = searchQuery.toLowerCase();
+        const matchesName = entity.name.toLowerCase().includes(query);
+        const matchesComment = entity.comment?.toLowerCase().includes(query);
+        const matchesProperty = entity.properties.some(prop => 
+          prop.name.toLowerCase().includes(query) || 
+          prop.range?.toLowerCase().includes(query)
+        );
+        const matchesRelationship = entity.relationships.some(rel => 
+          rel.name.toLowerCase().includes(query) || 
+          rel.range?.toLowerCase().includes(query)
+        );
+        
+        return matchesName || matchesComment || matchesProperty || matchesRelationship;
+      });
+      
       return (
-        <div className="space-y-2">
-          {sortedEntities.map((entity) => {
+        <div className="space-y-4">
+          {/* Search Input */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search classes, attributes, relations..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          
+          {/* Results */}
+          <div className="space-y-2">
+            {filteredEntities.map((entity) => {
             const isExpanded = expandedClasses.has(entity.name);
             
             return (
@@ -122,7 +156,14 @@ export const RelationshipGraph: React.FC<RelationshipGraphProps> = ({ ttlData })
                 )}
               </div>
             );
-          })}
+            })}
+            
+            {filteredEntities.length === 0 && searchQuery.trim() && (
+              <div className="text-muted-foreground p-4 text-center">
+                No entities found matching "{searchQuery}"
+              </div>
+            )}
+          </div>
         </div>
       );
     } catch (error) {
