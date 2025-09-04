@@ -16,7 +16,7 @@ import { buildClassERGraph } from '@/lib/ttl-parser';
 import { calculateLayout } from '@/lib/graph-layout';
 import { calculateHierarchicalLayout } from '@/lib/elk-layout';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Map, EyeOff, Eye } from 'lucide-react';
+import { RotateCcw, Map as MapIcon, EyeOff, Eye } from 'lucide-react';
 
 interface BubbleGraphProps {
   ttlData?: string;
@@ -41,6 +41,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   });
   
   const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set());
+  const [savedNodePositions, setSavedNodePositions] = useState<Map<string, { x: number; y: number }>>(new Map<string, { x: number; y: number }>());
   
   const graphData = useMemo(() => {
     if (!ttlData) return { nodes: [], edges: [] };
@@ -102,9 +103,21 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
       };
     });
 
-    // Use ALL edges for stable layout calculation
-    return calculateLayout(baseNodes, graphData.edges, containerSize.width, containerSize.height);
-  }, [graphData.nodes, graphData.edges, containerSize]);
+    // Calculate layout only if no saved positions exist, otherwise use saved positions
+    const layoutedNodes = calculateLayout(baseNodes, graphData.edges, containerSize.width, containerSize.height);
+    
+    // Apply saved positions if they exist
+    return layoutedNodes.map(node => {
+      const savedPos = savedNodePositions.get(node.id);
+      if (savedPos) {
+        return {
+          ...node,
+          position: savedPos
+        };
+      }
+      return node;
+    });
+  }, [graphData.nodes, graphData.edges, containerSize, savedNodePositions]);
 
   // Filter the full layout for display based on current settings
   const layoutedNodes = useMemo(() => {
@@ -178,6 +191,27 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
+  // Save node positions when they are moved by user
+  const handleNodesChange = useCallback((changes: any[]) => {
+    onNodesChange(changes);
+    
+    // Save positions when nodes are dragged
+    changes.forEach(change => {
+      if (change.type === 'position' && change.position && change.dragging === false) {
+        setSavedNodePositions(prev => {
+          const newMap = new Map(prev);
+          newMap.set(change.id, { x: change.position.x, y: change.position.y });
+          return newMap;
+        });
+      }
+    });
+  }, [onNodesChange]);
+
+  // Clear saved positions when data changes
+  useEffect(() => {
+    setSavedNodePositions(new Map<string, { x: number; y: number }>());
+  }, [ttlData]);
+
   // Update displayed nodes based on filtering
   useEffect(() => {
     setNodes(layoutedNodes);
@@ -202,37 +236,73 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
 
   const relayoutGraph = useCallback(async () => {
     if (fullLayoutNodes.length > 0) {
+      // Clear saved positions to force recalculation
+      setSavedNodePositions(new Map<string, { x: number; y: number }>());
+      
+      // Recalculate fresh layout
+      const baseNodes = graphData.nodes.map((node) => {
+        const label = node.data?.label || 'Unknown';
+        const labelLength = typeof label === 'string' ? label.length : 8;
+        const isClass = node.data?.type === 'class';
+        const isAttribute = node.data?.type === 'attribute';
+        
+        const baseSize = isClass ? Math.max(80, Math.min(120, labelLength * 8)) : Math.max(50, Math.min(70, labelLength * 6));
+        
+        return {
+          ...node,
+          data: { ...node.data, label },
+          style: {
+            background: isClass ? 'hsl(32, 95%, 55%)' : isAttribute ? 'hsl(32, 80%, 70%)' : 'hsl(32, 85%, 60%)',
+            color: isClass ? 'hsl(32, 100%, 15%)' : 'hsl(32, 90%, 20%)',
+            border: isClass ? '3px solid hsl(32, 90%, 45%)' : '2px solid hsl(32, 75%, 55%)',
+            borderRadius: '50%',
+            width: baseSize,
+            height: baseSize,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: isClass ? '14px' : '12px',
+            fontWeight: isClass ? '600' : '500',
+            textAlign: 'center' as const,
+            wordBreak: 'break-word' as const,
+            boxShadow: isClass ? '0 6px 16px hsl(32, 85%, 45% / 0.3)' : '0 3px 8px hsl(32, 75%, 55% / 0.2)',
+            padding: '8px',
+          },
+        };
+      });
+      
       if (useHierarchicalLayout) {
         try {
           const hierarchicalNodes = await calculateHierarchicalLayout(
-            fullLayoutNodes, 
-            graphData.edges, // Use all edges for stable layout
+            baseNodes, 
+            graphData.edges,
             containerSize.width, 
             containerSize.height
           );
           setNodes(hierarchicalNodes);
         } catch (error) {
           console.error('Hierarchical layout failed, falling back to force layout:', error);
-          const newLayout = calculateLayout(fullLayoutNodes, graphData.edges, containerSize.width, containerSize.height);
+          const newLayout = calculateLayout(baseNodes, graphData.edges, containerSize.width, containerSize.height);
           setNodes(newLayout);
         }
       } else {
-        const newLayout = calculateLayout(fullLayoutNodes, graphData.edges, containerSize.width, containerSize.height);
+        const newLayout = calculateLayout(baseNodes, graphData.edges, containerSize.width, containerSize.height);
         setNodes(newLayout);
       }
     }
-  }, [fullLayoutNodes, graphData.edges, containerSize, setNodes, useHierarchicalLayout]);
+  }, [graphData.nodes, graphData.edges, containerSize, setNodes, useHierarchicalLayout]);
 
   // Update nodes with async layout calculation (hierarchical only)
   useEffect(() => {
     const updateLayout = async () => {
       if (fullLayoutNodes.length === 0) return;
       
-      if (useHierarchicalLayout) {
+      if (useHierarchicalLayout && savedNodePositions.size === 0) {
+        // Only use hierarchical layout if no saved positions exist
         try {
           const hierarchicalNodes = await calculateHierarchicalLayout(
             fullLayoutNodes, 
-            graphData.edges, // Use all edges for stable layout
+            graphData.edges,
             containerSize.width, 
             containerSize.height
           );
@@ -247,7 +317,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
     };
     
     updateLayout();
-  }, [fullLayoutNodes, useHierarchicalLayout, graphData.edges, containerSize, setNodes]);
+  }, [fullLayoutNodes, useHierarchicalLayout, graphData.edges, containerSize, setNodes, savedNodePositions.size]);
 
   // Update edges when bubbleEdges changes
   useEffect(() => {
@@ -304,7 +374,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
           variant="outline"
           className="bg-background/80 backdrop-blur-sm"
         >
-          {showMiniMap ? <EyeOff className="h-4 w-4" /> : <Map className="h-4 w-4" />}
+          {showMiniMap ? <EyeOff className="h-4 w-4" /> : <MapIcon className="h-4 w-4" />}
         </Button>
         <Button
           onClick={relayoutGraph}
@@ -320,7 +390,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
       <ReactFlow
         nodes={nodes}
         edges={edges}
-        onNodesChange={onNodesChange}
+        onNodesChange={handleNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
         nodeTypes={nodeTypes}
