@@ -62,17 +62,17 @@ export const calculateLayout = (
   const simulation = forceSimulation(simulationNodes)
     .force('link', forceLink(simulationLinks)
       .id((d: any) => d.id)
-      .distance(150)
-      .strength(0.5)
+      .distance(250)  // Increased from 150
+      .strength(0.3)  // Reduced from 0.5 for looser connections
     )
     .force('charge', forceManyBody()
-      .strength(-800)
-      .distanceMax(400)
+      .strength(-1200)  // Increased repulsion from -800
+      .distanceMax(600)  // Increased from 400
     )
     .force('center', forceCenter(width / 2, height / 2))
     .force('collision', forceCollide()
-      .radius(60)
-      .strength(0.8)
+      .radius(80)  // Increased from 60
+      .strength(0.9)  // Increased from 0.8
     );
 
   // Run simulation synchronously

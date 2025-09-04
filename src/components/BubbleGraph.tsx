@@ -14,7 +14,7 @@ import '@xyflow/react/dist/style.css';
 import { buildClassERGraph } from '@/lib/ttl-parser';
 import { calculateLayout } from '@/lib/graph-layout';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Map, EyeOff } from 'lucide-react';
+import { RotateCcw, Map, EyeOff, Eye } from 'lucide-react';
 
 interface BubbleGraphProps {
   ttlData?: string;
@@ -27,6 +27,10 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
   const [showMiniMap, setShowMiniMap] = useState(() => {
     const saved = localStorage.getItem('bubble-graph-minimap');
+    return saved ? JSON.parse(saved) : true;
+  });
+  const [showAttributes, setShowAttributes] = useState(() => {
+    const saved = localStorage.getItem('bubble-graph-attributes');
     return saved ? JSON.parse(saved) : true;
   });
   
@@ -45,7 +49,12 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   const layoutedNodes = useMemo(() => {
     if (graphData.nodes.length === 0) return [];
     
-    const baseNodes = graphData.nodes.map((node) => {
+    // Filter nodes based on showAttributes setting
+    const filteredNodes = showAttributes 
+      ? graphData.nodes 
+      : graphData.nodes.filter(node => node.data?.type === 'class');
+    
+    const baseNodes = filteredNodes.map((node) => {
       const label = node.data?.label || 'Unknown';
       const labelLength = typeof label === 'string' ? label.length : 8;
       const isClass = node.data?.type === 'class';
@@ -90,8 +99,17 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
       };
     });
 
-    return calculateLayout(baseNodes, graphData.edges, containerSize.width, containerSize.height);
-  }, [graphData.nodes, graphData.edges, containerSize]);
+    // Filter edges based on showAttributes setting
+    const filteredEdges = showAttributes 
+      ? graphData.edges 
+      : graphData.edges.filter(edge => {
+          const sourceNode = graphData.nodes.find(n => n.id === edge.source);
+          const targetNode = graphData.nodes.find(n => n.id === edge.target);
+          return sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'class';
+        });
+
+    return calculateLayout(baseNodes, filteredEdges, containerSize.width, containerSize.height);
+  }, [graphData.nodes, graphData.edges, containerSize, showAttributes]);
 
   // Update container size
   useEffect(() => {
@@ -108,7 +126,16 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   }, []);
 
   const bubbleEdges: Edge[] = useMemo(() => {
-    return graphData.edges.map((edge) => ({
+    // Filter edges based on showAttributes setting
+    const filteredEdges = showAttributes 
+      ? graphData.edges 
+      : graphData.edges.filter(edge => {
+          const sourceNode = graphData.nodes.find(n => n.id === edge.source);
+          const targetNode = graphData.nodes.find(n => n.id === edge.target);
+          return sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'class';
+        });
+
+    return filteredEdges.map((edge) => ({
       ...edge,
       style: {
         stroke: 'hsl(var(--muted-foreground))',
@@ -123,7 +150,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
         fontSize: '15px',
       },
     }));
-  }, [graphData.edges]);
+  }, [graphData.edges, showAttributes, graphData.nodes]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -135,10 +162,17 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
 
   const relayoutGraph = useCallback(() => {
     if (layoutedNodes.length > 0) {
-      const newLayout = calculateLayout(layoutedNodes, graphData.edges, containerSize.width, containerSize.height);
+      const filteredEdges = showAttributes 
+        ? graphData.edges 
+        : graphData.edges.filter(edge => {
+            const sourceNode = graphData.nodes.find(n => n.id === edge.source);
+            const targetNode = graphData.nodes.find(n => n.id === edge.target);
+            return sourceNode?.data?.type === 'class' && targetNode?.data?.type === 'class';
+          });
+      const newLayout = calculateLayout(layoutedNodes, filteredEdges, containerSize.width, containerSize.height);
       setNodes(newLayout);
     }
-  }, [layoutedNodes, graphData.edges, containerSize, setNodes]);
+  }, [layoutedNodes, graphData.edges, graphData.nodes, containerSize, setNodes, showAttributes]);
 
   // Update nodes when layout changes
   useEffect(() => {
@@ -161,6 +195,19 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   return (
     <div className="h-full w-full relative" ref={containerRef}>
       <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+        <Button
+          onClick={() => {
+            const newValue = !showAttributes;
+            setShowAttributes(newValue);
+            localStorage.setItem('bubble-graph-attributes', JSON.stringify(newValue));
+          }}
+          size="sm"
+          variant="outline"
+          className="bg-background/80 backdrop-blur-sm"
+        >
+          {showAttributes ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          <span className="ml-2">Attributes</span>
+        </Button>
         <Button
           onClick={() => {
             const newValue = !showMiniMap;
@@ -193,7 +240,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
         nodeTypes={nodeTypes}
         connectionMode={ConnectionMode.Loose}
         fitView
-        fitViewOptions={{ padding: 0.2 }}
+        fitViewOptions={{ padding: 0.2, minZoom: 0.1, maxZoom: 4 }}
         className="bg-background"
       >
         <Background 
