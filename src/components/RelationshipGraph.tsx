@@ -35,9 +35,12 @@ export const RelationshipGraph: React.FC<RelationshipGraphProps> = ({ ttlData })
         );
       }
 
+      // Sort entities by number of relationships in descending order
+      const sortedEntities = [...parsedData.entities].sort((a, b) => b.relationships.length - a.relationships.length);
+      
       return (
         <div className="space-y-2">
-          {parsedData.entities.map((entity) => {
+          {sortedEntities.map((entity) => {
             const isExpanded = expandedClasses.has(entity.name);
             
             return (
