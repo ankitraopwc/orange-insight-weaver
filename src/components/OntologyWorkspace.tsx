@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Maximize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { RelationshipGraph } from '@/components/RelationshipGraph';
 import { BubbleGraph } from '@/components/BubbleGraph';
 
@@ -10,6 +11,7 @@ interface OntologyWorkspaceProps {
 
 export const OntologyWorkspace: React.FC<OntologyWorkspaceProps> = ({ ttlData }) => {
   const [isHumanReadablePanelOpen, setIsHumanReadablePanelOpen] = useState(true);
+  const [isFullscreenOpen, setIsFullscreenOpen] = useState(false);
 
   if (!ttlData) {
     return (
@@ -78,16 +80,27 @@ export const OntologyWorkspace: React.FC<OntologyWorkspaceProps> = ({ ttlData })
               <h3 className="font-semibold text-foreground">
                 Interactive Graph View
               </h3>
-              {!isHumanReadablePanelOpen && (
+              <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setIsHumanReadablePanelOpen(true)}
+                  onClick={() => setIsFullscreenOpen(true)}
                   className="h-8 w-8 p-0"
+                  title="Fullscreen view"
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <Maximize2 className="h-4 w-4" />
                 </Button>
-              )}
+                {!isHumanReadablePanelOpen && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsHumanReadablePanelOpen(true)}
+                    className="h-8 w-8 p-0"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex-1">
@@ -95,6 +108,31 @@ export const OntologyWorkspace: React.FC<OntologyWorkspaceProps> = ({ ttlData })
           </div>
         </div>
       </div>
+
+      {/* Fullscreen Dialog */}
+      <Dialog open={isFullscreenOpen} onOpenChange={setIsFullscreenOpen}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] w-[95vw] h-[95vh] p-0">
+          <DialogTitle className="sr-only">Fullscreen Graph View</DialogTitle>
+          <div className="h-full flex flex-col">
+            <div className="p-4 border-b border-border flex items-center justify-between">
+              <h3 className="font-semibold text-foreground">
+                Interactive Graph View - Fullscreen
+              </h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsFullscreenOpen(false)}
+                className="h-8 w-8 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex-1">
+              <BubbleGraph ttlData={ttlData} />
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
