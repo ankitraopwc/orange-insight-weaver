@@ -21,33 +21,28 @@ import { buildClassERGraph } from '@/lib/ttl-parser';
 import { calculateLayout } from '@/lib/graph-layout';
 import { calculateHierarchicalLayout } from '@/lib/elk-layout';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { RotateCcw, Map as MapIcon, EyeOff, Eye } from 'lucide-react';
 
 interface BubbleGraphProps {
   ttlData?: string;
 }
 
-// Custom tooltip node component
-const TooltipNode: React.FC<NodeProps> = ({ data, selected, ...props }) => {
+// Simple node component with native tooltip
+const SimpleNode: React.FC<NodeProps> = ({ data, selected, ...props }) => {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div className="cursor-pointer">
-          {String(data.label || 'Unknown')}
-          <Handle type="target" position={Position.Top} />
-          <Handle type="source" position={Position.Bottom} />
-        </div>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>{String(data.label || 'Unknown')}</p>
-      </TooltipContent>
-    </Tooltip>
+    <div 
+      className="cursor-pointer"
+      title={String(data.label || 'Unknown')}
+    >
+      {String(data.label || 'Unknown')}
+      <Handle type="target" position={Position.Top} />
+      <Handle type="source" position={Position.Bottom} />
+    </div>
   );
 };
 
-// Custom tooltip edge component
-const TooltipEdge: React.FC<EdgeProps> = ({
+// Simple edge component with native tooltip
+const SimpleEdge: React.FC<EdgeProps> = ({
   id,
   sourceX,
   sourceY,
@@ -70,50 +65,44 @@ const TooltipEdge: React.FC<EdgeProps> = ({
   });
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <g className="react-flow__edge-default">
-          <path
-            id={id}
-            style={style}
-            className="react-flow__edge-path"
-            d={edgePath}
-            markerEnd={markerEnd}
-          />
-          <path
-            d={edgePath}
-            fill="none"
-            stroke="transparent"
-            strokeWidth={20}
-            className="react-flow__edge-interaction"
-          />
-          {label && (
-            <text
-              x={labelX}
-              y={labelY}
-              className="react-flow__edge-text"
-              textAnchor="middle"
-              dominantBaseline="middle"
-              style={{ fontSize: '12px', fontWeight: '500' }}
-            >
-              {String(label)}
-            </text>
-          )}
-        </g>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>{String(label || 'Connection')}</p>
-      </TooltipContent>
-    </Tooltip>
+    <g className="react-flow__edge-default">
+      <title>{String(label || 'Connection')}</title>
+      <path
+        id={id}
+        style={style}
+        className="react-flow__edge-path"
+        d={edgePath}
+        markerEnd={markerEnd}
+      />
+      <path
+        d={edgePath}
+        fill="none"
+        stroke="transparent"
+        strokeWidth={20}
+        className="react-flow__edge-interaction"
+      />
+      {label && (
+        <text
+          x={labelX}
+          y={labelY}
+          className="react-flow__edge-text"
+          textAnchor="middle"
+          dominantBaseline="middle"
+          style={{ fontSize: '12px', fontWeight: '500' }}
+        >
+          {String(label)}
+        </text>
+      )}
+    </g>
   );
 };
 
 const nodeTypes = {
-  default: TooltipNode,
+  default: SimpleNode,
 };
 
 const edgeTypes = {
-  default: TooltipEdge,
+  default: SimpleEdge,
 };
 
 export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
@@ -575,86 +564,84 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   }
 
   return (
-    <TooltipProvider>
-      <div className="h-full w-full relative" ref={containerRef}>
-        <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-          <Button
-            onClick={() => {
-              const newValue = !showAttributes;
-              setShowAttributes(newValue);
-              localStorage.setItem('bubble-graph-attributes', JSON.stringify(newValue));
-              // Clean up state when toggling
-              if (newValue) {
-                // Clear expanded classes when turning attributes ON globally
-                setExpandedClasses(new Set());
-              } else {
-                // Clear collapsed classes when turning attributes OFF globally
-                setCollapsedClasses(new Set());
-              }
-            }}
-            size="sm"
-            variant="outline"
-            className="bg-background/80 backdrop-blur-sm"
-          >
-            {showAttributes ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            <span className="ml-2">Attributes</span>
-          </Button>
-          <Button
-            onClick={() => {
-              const newValue = !showMiniMap;
-              setShowMiniMap(newValue);
-              localStorage.setItem('bubble-graph-minimap', JSON.stringify(newValue));
-            }}
-            size="sm"
-            variant="outline"
-            className="bg-background/80 backdrop-blur-sm"
-          >
-            {showMiniMap ? <EyeOff className="h-4 w-4" /> : <MapIcon className="h-4 w-4" />}
-          </Button>
-          <Button
-            onClick={relayoutGraph}
-            size="sm"
-            variant="outline"
-            className="bg-background/80 backdrop-blur-sm"
-          >
-            <RotateCcw className="h-4 w-4 mr-2" />
-            Re-layout
-          </Button>
-        </div>
-        
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={handleNodesChange}
-          onEdgesChange={onEdgesChange}
-          onNodeDoubleClick={onNodeDoubleClick}
-          onEdgeClick={onEdgeClick}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          connectionMode={ConnectionMode.Loose}
-          fitView
-          fitViewOptions={{ padding: 0.2, minZoom: 0.1, maxZoom: 4 }}
-          className="bg-background"
+    <div className="h-full w-full relative" ref={containerRef}>
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+        <Button
+          onClick={() => {
+            const newValue = !showAttributes;
+            setShowAttributes(newValue);
+            localStorage.setItem('bubble-graph-attributes', JSON.stringify(newValue));
+            // Clean up state when toggling
+            if (newValue) {
+              // Clear expanded classes when turning attributes ON globally
+              setExpandedClasses(new Set());
+            } else {
+              // Clear collapsed classes when turning attributes OFF globally
+              setCollapsedClasses(new Set());
+            }
+          }}
+          size="sm"
+          variant="outline"
+          className="bg-background/80 backdrop-blur-sm"
         >
-          <Background 
-            color="hsl(var(--muted))" 
-            gap={20} 
-            size={1}
-          />
-          <Controls 
-            className="bg-card border border-border rounded-lg shadow-lg"
-            position="top-right"
-            style={{ top: 60, right: 16 }}
-          />
-          {showMiniMap && (
-            <MiniMap 
-              className="bg-card border border-border rounded-lg"
-              nodeColor={() => 'hsl(var(--primary))'}
-              maskColor="hsl(var(--background) / 0.8)"
-            />
-          )}
-        </ReactFlow>
+          {showAttributes ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          <span className="ml-2">Attributes</span>
+        </Button>
+        <Button
+          onClick={() => {
+            const newValue = !showMiniMap;
+            setShowMiniMap(newValue);
+            localStorage.setItem('bubble-graph-minimap', JSON.stringify(newValue));
+          }}
+          size="sm"
+          variant="outline"
+          className="bg-background/80 backdrop-blur-sm"
+        >
+          {showMiniMap ? <EyeOff className="h-4 w-4" /> : <MapIcon className="h-4 w-4" />}
+        </Button>
+        <Button
+          onClick={relayoutGraph}
+          size="sm"
+          variant="outline"
+          className="bg-background/80 backdrop-blur-sm"
+        >
+          <RotateCcw className="h-4 w-4 mr-2" />
+          Re-layout
+        </Button>
       </div>
-    </TooltipProvider>
+      
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={handleNodesChange}
+        onEdgesChange={onEdgesChange}
+        onNodeDoubleClick={onNodeDoubleClick}
+        onEdgeClick={onEdgeClick}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        connectionMode={ConnectionMode.Loose}
+        fitView
+        fitViewOptions={{ padding: 0.2, minZoom: 0.1, maxZoom: 4 }}
+        className="bg-background"
+      >
+        <Background 
+          color="hsl(var(--muted))" 
+          gap={20} 
+          size={1}
+        />
+        <Controls 
+          className="bg-card border border-border rounded-lg shadow-lg"
+          position="top-right"
+          style={{ top: 60, right: 16 }}
+        />
+        {showMiniMap && (
+          <MiniMap 
+            className="bg-card border border-border rounded-lg"
+            nodeColor={() => 'hsl(var(--primary))'}
+            maskColor="hsl(var(--background) / 0.8)"
+          />
+        )}
+      </ReactFlow>
+    </div>
   );
 };
