@@ -1,5 +1,5 @@
 import { Parser } from 'n3';
-import { Node, Edge } from '@xyflow/react';
+import { Node, Edge, MarkerType } from '@xyflow/react';
 import React from 'react';
 
 export interface ParsedTTLData {
@@ -134,10 +134,16 @@ export function parseTTLToGraph(ttlData: string): ParsedTTLData {
         id: `edge-${edgeCount++}`,
         source: sourceNode.id,
         target: targetNode.id,
-        label: getShortName(predicate),
+        label: humanizeName(getShortName(predicate)),
         type: 'default',
         style: { stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1.5 },
-        labelStyle: { fill: 'hsl(var(--foreground))', fontSize: '11px' }
+        labelStyle: { fill: 'hsl(var(--foreground))', fontSize: '11px' },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          width: 20,
+          height: 20,
+          color: 'hsl(var(--muted-foreground))'
+        }
       });
     }
   });
@@ -154,6 +160,23 @@ export function parseTTLToGraph(ttlData: string): ParsedTTLData {
 function getShortName(uri: string): string {
   const parts = uri.split(/[#/]/);
   return parts[parts.length - 1] || uri;
+}
+
+function humanizeName(name: string): string {
+  return name
+    // Convert camelCase to space-separated words
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    // Convert underscores and hyphens to spaces
+    .replace(/[_-]/g, ' ')
+    // Capitalize first letter and make rest lowercase
+    .toLowerCase()
+    .replace(/^\w/, (c) => c.toUpperCase())
+    // Handle common relationship patterns
+    .replace(/^Has\s/, 'has ')
+    .replace(/^Is\s/, 'is ')
+    .replace(/^Belongs\s/, 'belongs ')
+    .replace(/^Contains\s/, 'contains ')
+    .replace(/^Includes\s/, 'includes ');
 }
 
 // Create placeholder medical ER diagram
@@ -435,11 +458,23 @@ export function buildClassERGraph(ttlData: string): ParsedTTLData {
           id: `edge-${edgeCount++}`,
           source: classNode.id,
           target: attrNode.id,
+          label: humanizeName(property.name),
           type: 'default',
           style: { 
             stroke: 'hsl(32, 75%, 60%)', 
             strokeWidth: 1,
             strokeDasharray: '5,5'
+          },
+          labelStyle: { 
+            fill: 'hsl(32, 85%, 25%)', 
+            fontSize: '11px',
+            fontWeight: '400'
+          },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            width: 16,
+            height: 16,
+            color: 'hsl(32, 75%, 60%)'
           }
         });
       }
@@ -457,7 +492,7 @@ export function buildClassERGraph(ttlData: string): ParsedTTLData {
           id: `edge-${edgeCount++}`,
           source: sourceNode.id,
           target: targetNode.id,
-          label: property.name,
+          label: humanizeName(property.name),
           type: 'default',
           style: { 
             stroke: 'hsl(32, 85%, 45%)', 
@@ -467,6 +502,12 @@ export function buildClassERGraph(ttlData: string): ParsedTTLData {
             fill: 'hsl(32, 85%, 25%)', 
             fontSize: '12px',
             fontWeight: '500'
+          },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            width: 20,
+            height: 20,
+            color: 'hsl(32, 85%, 45%)'
           }
         });
       }

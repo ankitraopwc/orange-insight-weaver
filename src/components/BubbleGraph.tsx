@@ -244,6 +244,12 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
           stroke: isHighlighted ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
           strokeWidth: isHighlighted ? 4 : 2,
         },
+        markerEnd: edge.markerEnd || {
+          type: MarkerType.ArrowClosed,
+          width: 20,
+          height: 20,
+          color: isHighlighted ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))'
+        },
         labelBgStyle: {
           fill: 'hsl(var(--background))',
           fillOpacity: 0.8,
