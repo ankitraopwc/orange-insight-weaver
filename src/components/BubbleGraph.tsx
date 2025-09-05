@@ -9,7 +9,12 @@ import {
   Controls, 
   MiniMap,
   ConnectionMode,
-  MarkerType
+  MarkerType,
+  Handle,
+  Position,
+  NodeProps,
+  EdgeProps,
+  getBezierPath
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { buildClassERGraph } from '@/lib/ttl-parser';
@@ -23,7 +28,93 @@ interface BubbleGraphProps {
   ttlData?: string;
 }
 
-const nodeTypes = {};
+// Custom tooltip node component
+const TooltipNode: React.FC<NodeProps> = ({ data, selected, ...props }) => {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="cursor-pointer">
+          {String(data.label || 'Unknown')}
+          <Handle type="target" position={Position.Top} />
+          <Handle type="source" position={Position.Bottom} />
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{String(data.label || 'Unknown')}</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+};
+
+// Custom tooltip edge component
+const TooltipEdge: React.FC<EdgeProps> = ({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  style = {},
+  markerEnd,
+  label,
+  ...props
+}) => {
+  const [edgePath, labelX, labelY] = getBezierPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+  });
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <g className="react-flow__edge-default">
+          <path
+            id={id}
+            style={style}
+            className="react-flow__edge-path"
+            d={edgePath}
+            markerEnd={markerEnd}
+          />
+          <path
+            d={edgePath}
+            fill="none"
+            stroke="transparent"
+            strokeWidth={20}
+            className="react-flow__edge-interaction"
+          />
+          {label && (
+            <text
+              x={labelX}
+              y={labelY}
+              className="react-flow__edge-text"
+              textAnchor="middle"
+              dominantBaseline="middle"
+              style={{ fontSize: '12px', fontWeight: '500' }}
+            >
+              {String(label)}
+            </text>
+          )}
+        </g>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{String(label || 'Connection')}</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+};
+
+const nodeTypes = {
+  default: TooltipNode,
+};
+
+const edgeTypes = {
+  default: TooltipEdge,
+};
 
 export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -539,6 +630,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
           onNodeDoubleClick={onNodeDoubleClick}
           onEdgeClick={onEdgeClick}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           connectionMode={ConnectionMode.Loose}
           fitView
           fitViewOptions={{ padding: 0.2, minZoom: 0.1, maxZoom: 4 }}
