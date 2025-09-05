@@ -458,17 +458,11 @@ export function buildClassERGraph(ttlData: string): ParsedTTLData {
           id: `edge-${edgeCount++}`,
           source: classNode.id,
           target: attrNode.id,
-          label: humanizeName(property.name),
           type: 'default',
           style: { 
             stroke: 'hsl(32, 75%, 60%)', 
             strokeWidth: 1,
             strokeDasharray: '5,5'
-          },
-          labelStyle: { 
-            fill: 'hsl(32, 85%, 25%)', 
-            fontSize: '11px',
-            fontWeight: '400'
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
@@ -492,11 +486,11 @@ export function buildClassERGraph(ttlData: string): ParsedTTLData {
           id: `edge-${edgeCount++}`,
           source: sourceNode.id,
           target: targetNode.id,
-          label: humanizeName(property.name),
+          label: property.name,
           type: 'default',
           style: { 
             stroke: 'hsl(32, 85%, 45%)', 
-            strokeWidth: 2 
+            strokeWidth: 2
           },
           labelStyle: { 
             fill: 'hsl(32, 85%, 25%)', 

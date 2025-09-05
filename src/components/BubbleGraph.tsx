@@ -239,7 +239,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
       return {
         ...edge,
         type: 'default',
-        label: edge.label || `${sourceNode?.data?.label || edge.source} → ${targetNode?.data?.label || edge.target}`,
+        label: edge.label,
         style: {
           stroke: isHighlighted ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
           strokeWidth: isHighlighted ? 4 : 2,
@@ -250,15 +250,15 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
           height: 20,
           color: isHighlighted ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))'
         },
-        labelBgStyle: {
+        labelBgStyle: edge.label ? {
           fill: 'hsl(var(--background))',
           fillOpacity: 0.8,
-        },
-        labelStyle: {
+        } : undefined,
+        labelStyle: edge.label ? {
           fill: 'hsl(var(--foreground))',
           fontSize: '12px',
           fontWeight: '500',
-        },
+        } : undefined,
       };
     });
   }, [graphData.edges, showAttributes, graphData.nodes, expandedClasses, collapsedClasses, highlightedEdges]);
