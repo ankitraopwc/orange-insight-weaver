@@ -124,13 +124,13 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
   const [highlightedEdges, setHighlightedEdges] = useState<Set<string>>(new Set());
   
   const graphData = useMemo(() => {
-    if (!ttlData) return { nodes: [], edges: [] };
+    if (!ttlData) return { nodes: [], edges: [], subClassRelations: new Map(), parentClassMap: new Map() };
     
     try {
       return buildClassERGraph(ttlData);
     } catch (error) {
       console.error('Error parsing TTL for ER graph:', error);
-      return { nodes: [], edges: [] };
+      return { nodes: [], edges: [], subClassRelations: new Map(), parentClassMap: new Map() };
     }
   }, [ttlData]);
 
@@ -279,7 +279,7 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
     }
   }, [initialNodes, setNodes]); // Remove savedNodePositions dependency to prevent re-creation
 
-  // Update node visibility when showAttributes, expandedClasses, or collapsedClasses change
+  // Update node visibility and positioning when showAttributes, expandedClasses, collapsedClasses change, or parent classes move
   useEffect(() => {
     setNodes(currentNodes => 
       currentNodes.map(node => {
@@ -287,6 +287,40 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
         const isClass = node.data?.type === 'class';
         
         if (isClass) {
+          // Position child classes in a circle around parent (unless manually moved)
+          if (!manuallyMovedNodes.has(node.id) && node.data?.parent) {
+            const parentNode = currentNodes.find(n => n.id === node.data?.parent);
+            if (parentNode) {
+              // Get all child classes of this parent
+              const siblingNodes = currentNodes.filter(n => 
+                n.data?.type === 'class' && n.data?.parent === node.data?.parent
+              );
+              
+              const childIndex = siblingNodes.findIndex(n => n.id === node.id);
+              const totalChildren = siblingNodes.length;
+              
+              if (childIndex >= 0 && totalChildren > 0) {
+                const baseRadius = 180;
+                const labelLength = typeof node.data?.label === 'string' ? node.data.label.length : 8;
+                const nodeSize = Math.max(80, Math.min(120, labelLength * 8));
+                const minDistance = nodeSize + 30;
+                
+                const circumference = totalChildren * minDistance;
+                const calculatedRadius = Math.max(baseRadius, circumference / (2 * Math.PI));
+                
+                const angle = (childIndex / totalChildren) * 2 * Math.PI;
+                const x = parentNode.position.x + Math.cos(angle) * calculatedRadius;
+                const y = parentNode.position.y + Math.sin(angle) * calculatedRadius;
+                
+                return {
+                  ...node,
+                  hidden: false,
+                  position: { x, y }
+                };
+              }
+            }
+          }
+          
           // Classes are always visible
           return { ...node, hidden: false };
         }
@@ -405,9 +439,15 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
             return newMap;
           });
           
-          // If a class was dragged and has visible attributes, reposition only non-manually-moved ones
-          const draggedNode = nodes.find(n => n.id === change.id);
-          if (draggedNode?.data?.type === 'class') {
+          // Mark child classes as manually moved if they are moved by the user (not parent)
+          const movedNode = nodes.find(n => n.id === change.id);
+          if (movedNode?.data?.type === 'class' && movedNode.data?.parent) {
+            setManuallyMovedNodes(prev => new Set(prev).add(change.id));
+          }
+          
+          // If a class was dragged, reposition its attributes and child classes
+          if (movedNode?.data?.type === 'class') {
+            // Handle attribute repositioning (existing code)
             const hasVisibleAttributes = showAttributes 
               ? !collapsedClasses.has(change.id)
               : expandedClasses.has(change.id);
@@ -435,6 +475,38 @@ export const BubbleGraph: React.FC<BubbleGraphProps> = ({ ttlData }) => {
                     const calculatedRadius = Math.max(baseRadius, circumference / (2 * Math.PI));
                     
                     const angle = (attributeIndex / totalAttributes) * 2 * Math.PI;
+                    const x = change.position.x + Math.cos(angle) * calculatedRadius;
+                    const y = change.position.y + Math.sin(angle) * calculatedRadius;
+                    
+                    return {
+                      ...node,
+                      position: { x, y }
+                    };
+                  }
+                  return node;
+                });
+              });
+            }
+
+            // Handle child class repositioning (new code)
+            const childClasses = movedNode.data?.children || [];
+            if (childClasses.length > 0) {
+              setNodes(currentNodes => {
+                return currentNodes.map(node => {
+                  if (childClasses.includes(node.id) && !manuallyMovedNodes.has(node.id)) {
+                    // Only reposition child classes that weren't manually moved
+                    const childIndex = childClasses.indexOf(node.id);
+                    const totalChildren = childClasses.length;
+                    
+                    const baseRadius = 180;
+                    const labelLength = typeof node.data?.label === 'string' ? node.data.label.length : 8;
+                    const nodeSize = Math.max(80, Math.min(120, labelLength * 8));
+                    const minDistance = nodeSize + 30;
+                    
+                    const circumference = totalChildren * minDistance;
+                    const calculatedRadius = Math.max(baseRadius, circumference / (2 * Math.PI));
+                    
+                    const angle = (childIndex / totalChildren) * 2 * Math.PI;
                     const x = change.position.x + Math.cos(angle) * calculatedRadius;
                     const y = change.position.y + Math.sin(angle) * calculatedRadius;
                     

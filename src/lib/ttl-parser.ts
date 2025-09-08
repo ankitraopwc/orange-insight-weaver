@@ -5,6 +5,8 @@ import React from 'react';
 export interface ParsedTTLData {
   nodes: Node[];
   edges: Edge[];
+  subClassRelations?: Map<string, string[]>;
+  parentClassMap?: Map<string, string>;
 }
 
 export interface EntityProperty {
@@ -343,6 +345,8 @@ export function buildClassERGraph(ttlData: string): ParsedTTLData {
   const attributes = new Map<string, Node>();
   const objectProperties = new Map<string, { name: string; domain?: string; range?: string }>();
   const dataTypeProperties = new Map<string, { name: string; domain?: string }>();
+  const subClassRelations = new Map<string, string[]>(); // parent -> children
+  const parentClassMap = new Map<string, string>(); // child -> parent
   const edges: Edge[] = [];
   let nodeCount = 0;
   let edgeCount = 0;
@@ -415,7 +419,27 @@ export function buildClassERGraph(ttlData: string): ParsedTTLData {
     }
   });
   
-  // Fourth pass: get domains for datatype properties and create attribute nodes
+  // Fourth pass: identify subclass relationships
+  quads.forEach((quad) => {
+    if (quad.predicate.value === 'http://www.w3.org/2000/01/rdf-schema#subClassOf') {
+      const childClassUri = quad.subject.value;
+      const parentClassUri = quad.object.value;
+      
+      // Only track relationships between our identified classes
+      if (classes.has(childClassUri) && classes.has(parentClassUri)) {
+        // Add to parent's children list
+        if (!subClassRelations.has(parentClassUri)) {
+          subClassRelations.set(parentClassUri, []);
+        }
+        subClassRelations.get(parentClassUri)!.push(childClassUri);
+        
+        // Set child's parent
+        parentClassMap.set(childClassUri, parentClassUri);
+      }
+    }
+  });
+
+  // Fifth pass: get domains for datatype properties and create attribute nodes
   quads.forEach((quad) => {
     const predicate = quad.predicate.value;
     const subject = quad.subject.value;
@@ -447,10 +471,10 @@ export function buildClassERGraph(ttlData: string): ParsedTTLData {
     }
   });
   
-  // Fifth pass: identify classes that have relationships with other classes
+  // Sixth pass: identify classes that have relationships with other classes
   const classesWithRelationships = new Set<string>();
   
-  // Only add classes that have object properties (class-to-class relationships)
+  // Only add classes that have object properties (class-to-class relationships) or subclass relationships
   // Don't include classes that only have attributes
   objectProperties.forEach((property) => {
     if (property.domain) {
@@ -459,6 +483,12 @@ export function buildClassERGraph(ttlData: string): ParsedTTLData {
     if (property.range) {
       classesWithRelationships.add(property.range);
     }
+  });
+  
+  // Also include classes that have parent-child relationships
+  subClassRelations.forEach((children, parent) => {
+    classesWithRelationships.add(parent);
+    children.forEach(child => classesWithRelationships.add(child));
   });
   
   // Filter classes to only include those with relationships
@@ -475,7 +505,7 @@ export function buildClassERGraph(ttlData: string): ParsedTTLData {
     classes.set(uri, node);
   });
   
-  // Sixth pass: create edges for class-attribute relationships
+  // Seventh pass: create edges for class-attribute relationships
   dataTypeProperties.forEach((property, propUri) => {
     if (property.domain && classes.has(property.domain)) {
       const classNode = classes.get(property.domain);
@@ -503,7 +533,37 @@ export function buildClassERGraph(ttlData: string): ParsedTTLData {
     }
   });
   
-  // Seventh pass: create edges for class-class relationships
+  // Eighth pass: create edges for subclass relationships
+  subClassRelations.forEach((children, parentUri) => {
+    const parentNode = classes.get(parentUri);
+    if (parentNode) {
+      children.forEach(childUri => {
+        const childNode = classes.get(childUri);
+        if (childNode) {
+          edges.push({
+            id: `edge-${edgeCount++}`,
+            source: parentNode.id,
+            target: childNode.id,
+            label: 'subClassOf',
+            type: 'default',
+            style: {
+              stroke: 'hsl(280, 85%, 60%)', // Purple for inheritance
+              strokeWidth: 3,
+              strokeDasharray: '10,5'
+            },
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              width: 20,
+              height: 20,
+              color: 'hsl(280, 85%, 60%)'
+            }
+          });
+        }
+      });
+    }
+  });
+
+  // Ninth pass: create edges for class-class relationships
   objectProperties.forEach((property) => {
     if (property.domain && property.range && 
         classes.has(property.domain) && classes.has(property.range)) {
@@ -540,12 +600,33 @@ export function buildClassERGraph(ttlData: string): ParsedTTLData {
   console.log("Created class nodes:", classes.size);
   console.log("Created attribute nodes:", attributes.size);
   console.log("Created relationship edges:", edges.length);
+  console.log("Created subclass relationships:", subClassRelations.size);
   
   const allNodes = [...Array.from(classes.values()), ...Array.from(attributes.values())];
   
+  // Add parent-child relationship data to nodes
+  allNodes.forEach(node => {
+    if (node.data?.type === 'class') {
+      const classUri = node.data.uri as string;
+      const children = subClassRelations.get(classUri) || [];
+      const parent = parentClassMap.get(classUri);
+      
+      node.data = {
+        ...node.data,
+        children: children.map(childUri => {
+          const childNode = classes.get(childUri);
+          return childNode?.id || childUri;
+        }),
+        parent: parent ? (classes.get(parent)?.id || parent) : undefined
+      };
+    }
+  });
+  
   return {
     nodes: allNodes,
-    edges
+    edges,
+    subClassRelations,
+    parentClassMap
   };
 }
 
