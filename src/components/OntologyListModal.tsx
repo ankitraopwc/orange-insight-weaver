@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, FileText } from "lucide-react";
+import { Loader2, FileText, Trash2 } from "lucide-react";
 
 interface OntologyListModalProps {
   open: boolean;
@@ -20,6 +20,7 @@ export const OntologyListModal = ({ open, onClose, onSelectOntology }: OntologyL
   const [files, setFiles] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deletingFiles, setDeletingFiles] = useState<Set<string>>(new Set());
 
   const fetchFiles = async () => {
     setLoading(true);
@@ -50,6 +51,38 @@ export const OntologyListModal = ({ open, onClose, onSelectOntology }: OntologyL
   const handleSelectFile = (filename: string) => {
     onSelectOntology(filename);
     onClose();
+  };
+
+  const handleDeleteFile = async (filename: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    
+    setDeletingFiles(prev => new Set(prev).add(filename));
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/delete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id: filename }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to delete file: ${response.status}`);
+      }
+      
+      // Remove file from local list on successful deletion
+      setFiles(prev => prev.filter(file => file !== filename));
+    } catch (err) {
+      console.error('Error deleting file:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete file');
+    } finally {
+      setDeletingFiles(prev => {
+        const next = new Set(prev);
+        next.delete(filename);
+        return next;
+      });
+    }
   };
 
   return (
@@ -95,9 +128,24 @@ export const OntologyListModal = ({ open, onClose, onSelectOntology }: OntologyL
                       <FileText className="w-4 h-4 mr-2 text-muted-foreground" />
                       <span className="font-medium">{filename}</span>
                     </div>
-                    <Button variant="ghost" size="sm">
-                      Select
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => handleDeleteFile(filename, e)}
+                        disabled={deletingFiles.has(filename)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        {deletingFiles.has(filename) ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </Button>
+                      <Button variant="ghost" size="sm">
+                        Select
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
