@@ -447,9 +447,43 @@ export function buildClassERGraph(ttlData: string): ParsedTTLData {
     }
   });
   
-  // Fifth pass: create edges for class-attribute relationships
-  dataTypeProperties.forEach((property, propUri) => {
+  // Fifth pass: identify classes that have relationships
+  const classesWithRelationships = new Set<string>();
+  
+  // Add classes that have object properties (class-to-class relationships)
+  objectProperties.forEach((property) => {
     if (property.domain) {
+      classesWithRelationships.add(property.domain);
+    }
+    if (property.range) {
+      classesWithRelationships.add(property.range);
+    }
+  });
+  
+  // Add classes that have datatype properties (attributes)
+  dataTypeProperties.forEach((property) => {
+    if (property.domain) {
+      classesWithRelationships.add(property.domain);
+    }
+  });
+  
+  // Filter classes to only include those with relationships
+  const filteredClasses = new Map<string, Node>();
+  classesWithRelationships.forEach((classUri) => {
+    if (classes.has(classUri)) {
+      filteredClasses.set(classUri, classes.get(classUri)!);
+    }
+  });
+  
+  // Update classes map to only include classes with relationships
+  classes.clear();
+  filteredClasses.forEach((node, uri) => {
+    classes.set(uri, node);
+  });
+  
+  // Sixth pass: create edges for class-attribute relationships
+  dataTypeProperties.forEach((property, propUri) => {
+    if (property.domain && classes.has(property.domain)) {
       const classNode = classes.get(property.domain);
       const attrNode = attributes.get(propUri);
       
@@ -475,9 +509,10 @@ export function buildClassERGraph(ttlData: string): ParsedTTLData {
     }
   });
   
-  // Sixth pass: create edges for class-class relationships
+  // Seventh pass: create edges for class-class relationships
   objectProperties.forEach((property) => {
-    if (property.domain && property.range) {
+    if (property.domain && property.range && 
+        classes.has(property.domain) && classes.has(property.range)) {
       const sourceNode = classes.get(property.domain);
       const targetNode = classes.get(property.range);
       
@@ -623,7 +658,42 @@ export function parseTTLToEntities(ttlData: string): ParsedEntities {
     }
   });
   
-  // Fifth pass: assign properties to classes
+  // Fifth pass: identify classes that have relationships or properties
+  const classesWithRelationships = new Set<string>();
+  
+  // Add classes that have any properties (datatype or object properties)
+  properties.forEach((property) => {
+    if (property.domain) {
+      // Find the class URI by name
+      const classEntity = Array.from(classes.entries()).find(([uri, c]) => c.name === property.domain);
+      if (classEntity) {
+        classesWithRelationships.add(classEntity[0]);
+      }
+    }
+    if (property.type === 'object' && property.range) {
+      // Also include range classes for object properties
+      const rangeClassEntity = Array.from(classes.entries()).find(([uri, c]) => c.name === property.range);
+      if (rangeClassEntity) {
+        classesWithRelationships.add(rangeClassEntity[0]);
+      }
+    }
+  });
+  
+  // Filter classes to only include those with relationships
+  const filteredClasses = new Map<string, EntityClass>();
+  classesWithRelationships.forEach((classUri) => {
+    if (classes.has(classUri)) {
+      filteredClasses.set(classUri, classes.get(classUri)!);
+    }
+  });
+  
+  // Update classes map
+  classes.clear();
+  filteredClasses.forEach((entity, uri) => {
+    classes.set(uri, entity);
+  });
+
+  // Sixth pass: assign properties to classes
   properties.forEach((property) => {
     if (property.domain) {
       // Find the class by name (since we converted URIs to names)
