@@ -17,7 +17,7 @@ interface OntologyListModalProps {
 const API_BASE_URL = "http://localhost:8000";
 
 export const OntologyListModal = ({ open, onClose, onSelectOntology }: OntologyListModalProps) => {
-  const [files, setFiles] = useState<string[]>([]);
+  const [files, setFiles] = useState<{ filename: string; id: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deletingFiles, setDeletingFiles] = useState<Set<string>>(new Set());
@@ -33,7 +33,12 @@ export const OntologyListModal = ({ open, onClose, onSelectOntology }: OntologyL
       }
       
       const data = await response.json();
-      setFiles(data.files || []);
+      // Transform {filename: id} format to array of objects
+      const filesArray = Object.entries(data).map(([filename, id]) => ({
+        filename,
+        id: id as string
+      }));
+      setFiles(filesArray);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch files');
       console.error('Error fetching files:', err);
@@ -53,10 +58,10 @@ export const OntologyListModal = ({ open, onClose, onSelectOntology }: OntologyL
     onClose();
   };
 
-  const handleDeleteFile = async (filename: string, event: React.MouseEvent) => {
+  const handleDeleteFile = async (file: { filename: string; id: string }, event: React.MouseEvent) => {
     event.stopPropagation();
     
-    setDeletingFiles(prev => new Set(prev).add(filename));
+    setDeletingFiles(prev => new Set(prev).add(file.id));
     
     try {
       const response = await fetch(`${API_BASE_URL}/delete`, {
@@ -64,7 +69,7 @@ export const OntologyListModal = ({ open, onClose, onSelectOntology }: OntologyL
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ id: filename }),
+        body: JSON.stringify({ id: file.id }),
       });
       
       if (!response.ok) {
@@ -72,14 +77,14 @@ export const OntologyListModal = ({ open, onClose, onSelectOntology }: OntologyL
       }
       
       // Remove file from local list on successful deletion
-      setFiles(prev => prev.filter(file => file !== filename));
+      setFiles(prev => prev.filter(f => f.id !== file.id));
     } catch (err) {
       console.error('Error deleting file:', err);
       setError(err instanceof Error ? err.message : 'Failed to delete file');
     } finally {
       setDeletingFiles(prev => {
         const next = new Set(prev);
-        next.delete(filename);
+        next.delete(file.id);
         return next;
       });
     }
@@ -118,25 +123,25 @@ export const OntologyListModal = ({ open, onClose, onSelectOntology }: OntologyL
           {!loading && !error && files.length > 0 && (
             <div className="flex-1 overflow-y-auto">
               <div className="space-y-2 py-4">
-                {files.map((filename, index) => (
+                {files.map((file, index) => (
                   <div
                     key={index}
                     className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer"
-                    onClick={() => handleSelectFile(filename)}
+                    onClick={() => handleSelectFile(file.filename)}
                   >
                     <div className="flex items-center">
                       <FileText className="w-4 h-4 mr-2 text-muted-foreground" />
-                      <span className="font-medium">{filename}</span>
+                      <span className="font-medium">{file.filename}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={(e) => handleDeleteFile(filename, e)}
-                        disabled={deletingFiles.has(filename)}
+                        onClick={(e) => handleDeleteFile(file, e)}
+                        disabled={deletingFiles.has(file.id)}
                         className="text-destructive hover:text-destructive"
                       >
-                        {deletingFiles.has(filename) ? (
+                        {deletingFiles.has(file.id) ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
                           <Trash2 className="w-4 h-4" />
