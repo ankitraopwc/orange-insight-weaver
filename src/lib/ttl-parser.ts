@@ -447,23 +447,17 @@ export function buildClassERGraph(ttlData: string): ParsedTTLData {
     }
   });
   
-  // Fifth pass: identify classes that have relationships
+  // Fifth pass: identify classes that have relationships with other classes
   const classesWithRelationships = new Set<string>();
   
-  // Add classes that have object properties (class-to-class relationships)
+  // Only add classes that have object properties (class-to-class relationships)
+  // Don't include classes that only have attributes
   objectProperties.forEach((property) => {
     if (property.domain) {
       classesWithRelationships.add(property.domain);
     }
     if (property.range) {
       classesWithRelationships.add(property.range);
-    }
-  });
-  
-  // Add classes that have datatype properties (attributes)
-  dataTypeProperties.forEach((property) => {
-    if (property.domain) {
-      classesWithRelationships.add(property.domain);
     }
   });
   
@@ -658,12 +652,13 @@ export function parseTTLToEntities(ttlData: string): ParsedEntities {
     }
   });
   
-  // Fifth pass: identify classes that have relationships or properties
+  // Fifth pass: identify classes that have relationships with other classes
   const classesWithRelationships = new Set<string>();
   
-  // Add classes that have any properties (datatype or object properties)
+  // Only add classes that have object properties (relationships with other classes)
+  // Don't include classes that only have datatype properties (attributes)
   properties.forEach((property) => {
-    if (property.domain) {
+    if (property.type === 'object' && property.domain) {
       // Find the class URI by name
       const classEntity = Array.from(classes.entries()).find(([uri, c]) => c.name === property.domain);
       if (classEntity) {
