@@ -447,35 +447,7 @@ export function buildClassERGraph(ttlData: string): ParsedTTLData {
     }
   });
   
-  // Fifth pass: identify classes that have relationships with other classes
-  const classesWithRelationships = new Set<string>();
-  
-  // Only add classes that have object properties (class-to-class relationships)
-  // Don't include classes that only have attributes
-  objectProperties.forEach((property) => {
-    if (property.domain) {
-      classesWithRelationships.add(property.domain);
-    }
-    if (property.range) {
-      classesWithRelationships.add(property.range);
-    }
-  });
-  
-  // Filter classes to only include those with relationships
-  const filteredClasses = new Map<string, Node>();
-  classesWithRelationships.forEach((classUri) => {
-    if (classes.has(classUri)) {
-      filteredClasses.set(classUri, classes.get(classUri)!);
-    }
-  });
-  
-  // Update classes map to only include classes with relationships
-  classes.clear();
-  filteredClasses.forEach((node, uri) => {
-    classes.set(uri, node);
-  });
-  
-  // Sixth pass: create edges for class-attribute relationships
+  // Fifth pass: create edges for class-attribute relationships
   dataTypeProperties.forEach((property, propUri) => {
     if (property.domain && classes.has(property.domain)) {
       const classNode = classes.get(property.domain);
