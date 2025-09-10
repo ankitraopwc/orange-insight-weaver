@@ -16,9 +16,9 @@ const Index = () => {
     setTtlData(ttlString);
   };
 
-const handleSelectOntology = async (filename: string) => {
+const handleSelectOntology = async (id: string) => {
     try {
-      const response = await fetch(`http://localhost:8000/download/${filename}`);
+      const response = await fetch(`http://localhost:8000/download/${id}`);
       if (!response.ok) {
         throw new Error(`Failed to download ontology: ${response.status}`);
       }

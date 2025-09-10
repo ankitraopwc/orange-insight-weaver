@@ -11,7 +11,7 @@ import { Loader2, FileText, Trash2 } from "lucide-react";
 interface OntologyListModalProps {
   open: boolean;
   onClose: () => void;
-  onSelectOntology: (filename: string) => void;
+  onSelectOntology: (id: string) => void;
 }
 
 const API_BASE_URL = "http://localhost:8000";
@@ -53,8 +53,8 @@ export const OntologyListModal = ({ open, onClose, onSelectOntology }: OntologyL
     }
   }, [open]);
 
-  const handleSelectFile = (filename: string) => {
-    onSelectOntology(filename);
+  const handleSelectFile = (id: string) => {
+    onSelectOntology(id);
     onClose();
   };
 
@@ -127,7 +127,7 @@ export const OntologyListModal = ({ open, onClose, onSelectOntology }: OntologyL
                   <div
                     key={index}
                     className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer"
-                    onClick={() => handleSelectFile(file.filename)}
+                    onClick={() => handleSelectFile(file.id)}
                   >
                     <div className="flex items-center">
                       <FileText className="w-4 h-4 mr-2 text-muted-foreground" />
